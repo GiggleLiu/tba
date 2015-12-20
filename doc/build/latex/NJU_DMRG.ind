@@ -1,0 +1,87 @@
+\begin{theindex}
+\def\bigletter#1{{\Large\sffamily#1}\nopagebreak\vspace{1mm}}
+
+  \bigletter B
+  \item b1s (lattice.structure.Structure attribute), \hyperpage{2}
+  \item b2s (lattice.structure.Structure attribute), \hyperpage{2}
+  \item b3s (lattice.structure.Structure attribute), \hyperpage{2}
+
+  \indexspace
+  \bigletter C
+  \item cbonds (lattice.lattice.Lattice attribute), \hyperpage{4}
+  \item Chain (class in lattice.latticelib), \hyperpage{1}
+  \item construct\_lattice() (in module lattice.latticelib), \hyperpage{1}
+
+  \indexspace
+  \bigletter D
+  \item dimension (lattice.lattice.Lattice attribute), \hyperpage{4}
+
+  \indexspace
+  \bigletter F
+  \item findsite() (lattice.lattice.Lattice method), \hyperpage{4}
+  \item findsite() (lattice.structure.Structure method), \hyperpage{2}
+
+  \indexspace
+  \bigletter G
+  \item getbonds() (lattice.structure.Structure method), \hyperpage{2}
+
+  \indexspace
+  \bigletter H
+  \item Honeycomb\_Lattice (class in lattice.latticelib), \hyperpage{2}
+
+  \indexspace
+  \bigletter I
+  \item index2l() (lattice.lattice.Lattice method), \hyperpage{4}
+  \item initbonds() (lattice.structure.Structure method), \hyperpage{2}
+
+  \indexspace
+  \bigletter K
+  \item kspace (lattice.lattice.Lattice attribute), \hyperpage{4}
+  \item kspace (lattice.latticelib.Chain attribute), \hyperpage{1}
+  \item kspace (lattice.latticelib.Honeycomb\_Lattice attribute), \hyperpage{2}
+  \item kspace (lattice.latticelib.Square\_Lattice attribute), \hyperpage{1}
+  \item kspace (lattice.latticelib.Triangular\_Lattice attribute), \hyperpage{1}
+
+  \indexspace
+  \bigletter L
+  \item l2index() (lattice.lattice.Lattice method), \hyperpage{4}
+  \item Lattice (class in lattice.lattice), \hyperpage{3}
+  \item lattice.latticelib (module), \hyperpage{1}
+  \item load\_bonds() (lattice.structure.Structure method), \hyperpage{3}
+
+  \indexspace
+  \bigletter M
+  \item measure() (lattice.structure.Structure method), \hyperpage{3}
+
+  \indexspace
+  \bigletter N
+  \item ncatom (lattice.lattice.Lattice attribute), \hyperpage{4}
+  \item nsite (lattice.structure.Structure attribute), \hyperpage{3}
+
+  \indexspace
+  \bigletter Q
+  \item query() (lattice.structure.Structure method), \hyperpage{3}
+
+  \indexspace
+  \bigletter S
+  \item save\_bonds() (lattice.structure.Structure method), \hyperpage{3}
+  \item show\_bonds() (lattice.structure.Structure method), \hyperpage{3}
+  \item show\_sites() (lattice.structure.Structure method), \hyperpage{3}
+  \item showcell() (lattice.lattice.Lattice method), \hyperpage{4}
+  \item siteconfig (lattice.lattice.Lattice attribute), \hyperpage{4}
+  \item Square\_Lattice (class in lattice.latticelib), \hyperpage{1}
+  \item Structure (class in lattice.structure), \hyperpage{2}
+
+  \indexspace
+  \bigletter T
+  \item Triangular\_Lattice (class in lattice.latticelib), \hyperpage{1}
+
+  \indexspace
+  \bigletter U
+  \item usegroup() (lattice.structure.Structure method), \hyperpage{3}
+
+  \indexspace
+  \bigletter V
+  \item vdim (lattice.structure.Structure attribute), \hyperpage{3}
+
+\end{theindex}

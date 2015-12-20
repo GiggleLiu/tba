@@ -1,0 +1,6 @@
+\select@language {english}
+\contentsline {chapter}{\numberline {1}How to Build Lattices and Momentum Spaces}{1}{chapter.1}
+\contentsline {section}{\numberline {1.1}Variaty Kinds of Lattices}{1}{section.1.1}
+\contentsline {chapter}{\numberline {2}How to Write Down Hamiltonians}{5}{chapter.2}
+\contentsline {chapter}{Python Module Index}{6}{section*.39}
+\contentsline {chapter}{Index}{7}{section*.40}
