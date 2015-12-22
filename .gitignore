@@ -20,6 +20,5 @@ core.*
 *.dvi
 *.log
 *data/
-*_build/
+*build/
 run.py
-tba/build/

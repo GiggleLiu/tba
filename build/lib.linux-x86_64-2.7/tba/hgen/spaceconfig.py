@@ -112,7 +112,7 @@ class SpaceConfig(object):
             spinindex=0
         if indices==None:
             indices=[nambuindex,spinindex,atomindex,orbitindex]
-        return c2ind(indices,N=self.config)
+        return c2ind(indices,N=self.config[-len(indices):])
 
     def subspace2(self,nambus=None,spins=None,atoms=None,orbits=None):
         '''
@@ -205,8 +205,8 @@ class SuperSpaceConfig(SpaceConfig):
     ne_conserve:
         True(default) if electron numbers are conserved else False.
     '''
-    def __init__(self,config,ne_conserve=False,*args,**kwargs):
-        super(SuperSpaceConfig,self).__init__([1]+list(config)[-3:],kspace=False,*args,**kwargs)
+    def __init__(self,config,ne_conserve=False,spinless=False):
+        super(SuperSpaceConfig,self).__init__([1]+list(config)[-3:],kspace=False,spinless=True)
         self.ne_conserve=ne_conserve
         self.ne=0
         if ne_conserve and config[0]==2:

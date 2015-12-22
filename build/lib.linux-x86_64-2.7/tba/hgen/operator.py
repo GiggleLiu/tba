@@ -1,4 +1,3 @@
-#!/usr/bin/python
 '''
 Tree structured Operator classes.
 
@@ -10,7 +9,9 @@ Operator -> Base class for operators.
     * Qlinear -> Elemental(leaf) Operator in the form of { factor * c^\dag c^\dag c c }.
     * Operator_C -> Elemental(leaf) Operator in the form of { factor * c(^\dag) }.
 '''
-__all__=['Operator','Bilinear','BBilinear','Operator_C','Qlinear','Qlinear_ninj','formop']
+
+__all__=['Operator','Bilinear','BBilinear','Operator_C','Qlinear','Qlinear_ninj','formop','Nlinear']
+
 from utils import ind2c
 from numpy.linalg import norm
 from spaceconfig import SuperSpaceConfig,SpaceConfig
@@ -27,27 +28,18 @@ class Operator(object):
 
     A quantum operator can be consist of one or more suboperators(or it's drived classed, like (B)Bilinear/Qlinear).
 
-    Construct
-    -------------------
-    Operator(label,spaceconfig,factor=1.)
+    Construct:
+        Operator(label,spaceconfig,factor=1.)
 
-    Attributes
-    -------------------
-    label:
-        The label of this operator.
-    spaceconfig:
-        The configuration of Hamiltonian, an instance of SpaceConfig(or it's derived classes).
-    factor:
-        Multiplication factor. 
-    father/weight:
-        Superoperator and Multiplication factor as a Node operator.
-    suboperators:
-        Sibling-operators.
-    meta_info:
-        Displayed in the __str__ as bonus infomation.
+    Attributes:
+        :label: The label of this operator.
+        :spaceconfig: The configuration of Hamiltonian, an instance of SpaceConfig(or it's derived classes).
+        :factor: Multiplication factor. 
+        :father/weight: Superoperator and Multiplication factor as a Node operator.
+        :suboperators: Sibling-operators.
+        :meta_info: Displayed in the __str__ as bonus infomation.
         
-    Note
-    ----------------
+    Note:
         Operators are structured in the form of Tree, this is what father, suboperators and weight are for.
         The leaves of this Tree must be (B)Bilinear, Operator_C or Qlinear instance.
         
@@ -364,20 +356,85 @@ class Operator_C(Operator):
                 clist.append(type(self)(spaceconfig=self.spaceconfig,index=ind1[i],dag=self.dag,factor=f,**kwargs))
         return clist
 
+class Nlinear(Operator):
+    '''
+    Nlinear class(N body operator).
+
+    Construct:
+        Qlinear(spaceconfig,indices,factor=1.,label=None), label is the `id` of this instance if not specified.
+
+    Attributes:
+        :indices: N indices for Nlinear. sorted in the normal order "c+c+...cc...".
+        *see also <Operator> class.*
+    '''
+    def __init__(self,spaceconfig,indices,indices_ndag=None,factor=1.,label=None):
+        super(Nlinear,self).__init__(label=label,spaceconfig=spaceconfig,factor=factor)
+        self.indices=array(indices)
+        if indices_ndag is None: indices_ndag=len(indices)/2
+        self.indices_ndag=indices_ndag
+
+    def __getattr__(self,name):
+        mch=re.match('^index(\d+)$',name)
+        if mch:
+            n=int(mch.group(1))
+            if n<self.nbody:
+                return self.indices[n]
+            else:
+                raise ValueError('Index exceeded %s/%s.'%(n,self.nbody))
+        else:
+            return super(Nlinear,self).__getattr__(name)
+
+    def __str__(self):
+        txt=''
+        if type(self.factor)==ndarray:
+            factor=self.factor[0,0]
+        else:
+            factor=self.factor
+        txt+='%s*('%(factor*self.weight,)
+        inds=[self.spaceconfig.ind2c(ind) for ind in self.indices]
+        c=['C_']*self.nbody
+        for i in xrange(self.nbody):
+            if self.spaceconfig.nspin==2:
+                c[i]+=('dn' if inds[i][1] else 'up')
+            if self.spaceconfig.natom>=2:
+                c[i]+=chr(65+inds[i][2])
+            if self.spaceconfig.norbit>=2:
+                c[i]+='o'+str(inds[i][3])
+            if i<self.indices_ndag:
+                c[i]+='+'
+        txt+=''.join(c)+self.meta_info
+        return txt+')'
+
+    def __call__(self,param,dense=False,**kwargs):
+        raise Exception('Not Implemented!')
+        #first get all posible distribution of eletrons with site2 and site1 both occupied/unoccupied(reverse).
+        indices=self.spaceconfig.indices_occ(occ=self.indices[self.indices_ndag:])[0]
+        #set the H matrix, note the '-' sign befor self.factor.
+        data=param*self.weight*(-self.factor)*ones(indices.shape,dtype='complex128')
+        if not dense:
+            h=coo_matrix((data,(indices,indices)),shape=[self.spaceconfig.hndim]*2)
+            return h
+        else:
+            H=zeros(shape=[self.spaceconfig.hndim]*2,dtype='complex128')
+            H[indices,indices]+=data
+            return H
+
+    @property
+    def nbody(self):
+        '''N body operator.'''
+        return len(self.indices)
+
+
 class Bilinear(Operator):
     '''
     Bilinear class, it is a special Operator with only one bilinear. It consititue the lowest layer of Operator tree.
 
-    Construct
-    ------------------
-    Bilinear(spaceconfig,index1,index2,factor=1.,label=None), label is the `id` of this instance if not specified.
+    Construct:
+        Bilinear(spaceconfig,index1,index2,factor=1.,label=None), label is the `id` of this instance if not specified.
 
-    Attributes
-    ------------------
-    index1/index2:
-        Arrays indicating sub-block of hamiltonian H[index1,index2].
-
-    *see also <Operator> class*
+    Attributes:
+        :index1/index2: Arrays indicating sub-block of hamiltonian H[index1,index2].
+        *see also <Operator> class*
     '''
     def __init__(self,spaceconfig,index1,index2,factor=1.,label=None):
         if label is None: label=id(self)
@@ -696,78 +753,6 @@ class Qlinear_ninj(Qlinear):
             H=zeros(shape=[self.spaceconfig.hndim]*2,dtype='complex128')
             H[indices,indices]+=data
             return H
-
-class Nlinear(Operator):
-    '''
-    Nlinear class(N body operator).
-
-    Construct
-    ------------------
-    Qlinear(spaceconfig,indices,factor=1.,label=None), label is the `id` of this instance if not specified.
-
-    Attributes
-    ------------------
-    indices:
-        N indices for Nlinear. sorted in the normal order "c+c+...cc...".
-
-    *see also <Operator> class.*
-    '''
-    def __init__(self,spaceconfig,indices,indices_ndag=None,factor=1.,label=None):
-        super(Nlinear,self).__init__(label=label,spaceconfig=spaceconfig,factor=factor)
-        self.indices=array(indices)
-        if indices_ndag is None: indices_ndag=len(indices)/2
-        self.indices_ndag=indices_ndag
-
-    def __getattr__(self,name):
-        mch=re.match('^index(\d+)$',name)
-        if mch:
-            n=int(mch.group(1))
-            if n<self.nbody:
-                return self.indices[n]
-            else:
-                raise ValueError('Index exceeded %s/%s.'%(n,self.nbody))
-        else:
-            return super(Nlinear,self).__getattr__(name)
-
-    def __str__(self):
-        txt=''
-        if type(self.factor)==ndarray:
-            factor=self.factor[0,0]
-        else:
-            factor=self.factor
-        txt+='%s*('%(factor*self.weight,)
-        inds=[self.spaceconfig.ind2c(ind) for ind in self.indices]
-        c=['C_']*self.nbody
-        for i in xrange(self.nbody):
-            if self.spaceconfig.nspin==2:
-                c[i]+=('dn' if inds[i][1] else 'up')
-            if self.spaceconfig.natom>=2:
-                c[i]+=chr(65+inds[i][2])
-            if self.spaceconfig.norbit>=2:
-                c[i]+='o'+str(inds[i][3])
-            if i<self.indices_ndag:
-                c[i]+='+'
-        txt+=''.join(c)+self.meta_info
-        return txt+')'
-
-    def __call__(self,param,dense=False,**kwargs):
-        raise Exception('Not Implemented!')
-        #first get all posible distribution of eletrons with site2 and site1 both occupied/unoccupied(reverse).
-        indices=self.spaceconfig.indices_occ(occ=self.indices[self.indices_ndag:])[0]
-        #set the H matrix, note the '-' sign befor self.factor.
-        data=param*self.weight*(-self.factor)*ones(indices.shape,dtype='complex128')
-        if not dense:
-            h=coo_matrix((data,(indices,indices)),shape=[self.spaceconfig.hndim]*2)
-            return h
-        else:
-            H=zeros(shape=[self.spaceconfig.hndim]*2,dtype='complex128')
-            H[indices,indices]+=data
-            return H
-
-    @property
-    def nbody(self):
-        '''N body operator.'''
-        return len(self.indices)
 
 def formop(oplist,label=None):
     '''

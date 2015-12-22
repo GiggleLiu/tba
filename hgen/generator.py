@@ -1,13 +1,14 @@
-#!/usr/bin/python
-#-*-coding:utf-8-*-
-#By Giggle Liu
+'''
+Hamiltonian generator classes.
+'''
 from numpy import *
 from numpy.linalg import norm
-from multithreading import mpido
 from scipy.sparse import csr_matrix
 from scipy.linalg import solve,eigvalsh
 from matplotlib.pyplot import *
 import os,time,re,pdb
+
+from multithreading import mpido
 
 __all__=['HGeneratorBase','KHGenerator','RHGenerator']
 

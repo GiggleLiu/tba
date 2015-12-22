@@ -2,9 +2,10 @@
 Operator Construction methods.
 '''
 from numpy import *
-from operator import *
-from utils import sx,sy,sz
 import pdb
+
+from op import *
+from utils import sx,sy,sz
 
 __all__=['op_from_mats','op_U','op_V','op_c','op_cdag','op_simple_onsite','op_simple_hopping','op_M']
 
@@ -82,7 +83,7 @@ def op_V(spaceconfig,bonds,label='V'):
             op.addsubop(Qlinear_ninj(spaceconfig=spaceconfig,i=i1,j=i2))
     return op
 
-def op_c(spaceconfig,index,label='c'):
+def op_c(spaceconfig,index):
     '''
     Anilation Operator.
     
@@ -90,12 +91,10 @@ def op_c(spaceconfig,index,label='c'):
         the configuration of hamiltonian space.
     index:
         the index of electron to anilate.
-    label:
-        default is 'c'.
     '''
-    return Operator_C(spaceconfig=spaceconfig,index=index,label=label)
+    return Operator_C(spaceconfig=spaceconfig,index=index)
 
-def op_cdag(spaceconfig,index,label='cdag'):
+def op_cdag(spaceconfig,index):
     '''
     Creation Operator.
     
@@ -103,10 +102,8 @@ def op_cdag(spaceconfig,index,label='cdag'):
         the configuration of hamiltonian space.
     index:
         the index of electron to create.
-    label:
-        default is 'cdag'.
     '''
-    return Operator_C(spaceconfig=spaceconfig,index=index,dag=True,label=label)
+    return Operator_C(spaceconfig=spaceconfig,index=index,dag=True)
 
 def op_simple_onsite(label,spaceconfig,index=None):
     '''

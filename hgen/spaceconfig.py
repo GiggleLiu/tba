@@ -65,7 +65,7 @@ class SpaceConfig(object):
             elif substr in self.SPACE_TOKENS:
                 return self.config[self.SPACE_TOKENS.index(substr)]
         else:
-            super(SpaceConfig,self).__getattr__(name)
+            raise AttributeError('Can not find attibute %s'%name)
 
     @property
     def ndim(self):
@@ -110,9 +110,9 @@ class SpaceConfig(object):
         '''
         if self.smallnambu:
             spinindex=0
-        if indices==None:
+        if indices is None:
             indices=[nambuindex,spinindex,atomindex,orbitindex]
-        return c2ind(indices,N=self.config)
+        return c2ind(indices,N=self.config[-len(indices):])
 
     def subspace2(self,nambus=None,spins=None,atoms=None,orbits=None):
         '''
@@ -121,13 +121,13 @@ class SpaceConfig(object):
         nambus/spins/atoms/orbits:
             array as indices of nambu/spin/atom/orbit, default is all indices.
         '''
-        if nambus==None:
+        if nambus is None:
             nambus=arange(self.nnambu)
-        if spins==None:
+        if spins is None:
             spins=arange(self.nspin)
-        if atoms==None:
+        if atoms is None:
             atoms=arange(self.natom)
-        if orbits==None:
+        if orbits is None:
             orbits=arange(self.norbit)
         if self.smallnambu:
             spins=[0]
@@ -205,8 +205,8 @@ class SuperSpaceConfig(SpaceConfig):
     ne_conserve:
         True(default) if electron numbers are conserved else False.
     '''
-    def __init__(self,config,ne_conserve=False,*args,**kwargs):
-        super(SuperSpaceConfig,self).__init__([1]+list(config)[-3:],kspace=False,*args,**kwargs)
+    def __init__(self,config,ne_conserve=False,spinless=False):
+        super(SuperSpaceConfig,self).__init__([1]+list(config)[-3:],kspace=False,spinless=True)
         self.ne_conserve=ne_conserve
         self.ne=0
         if ne_conserve and config[0]==2:

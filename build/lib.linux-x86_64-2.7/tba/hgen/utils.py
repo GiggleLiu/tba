@@ -92,6 +92,8 @@ def c2ind(c,N):
     N: 
         the space config [n1,n2,n3...].
     '''
+    assert(len(c)==len(N))
+    c=array(c)
     n=c.shape[-1]
     cc=c[...,0]
     for i in xrange(n-1):
