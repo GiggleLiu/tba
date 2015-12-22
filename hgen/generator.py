@@ -149,7 +149,7 @@ class KHGenerator(HGeneratorBase):
             if param==None or abs(param)<1e-8:
                 #print 'Warning! Small parameter ',param,'! Ignored'
                 continue
-            hkmesh+=param*operator.weight*operator.Hk(self.kspace.kmesh)
+            hkmesh+=param*operator.Hk(self.kspace.kmesh)
         if self.propergauge and self.spaceconfig.natom>1:
             hkmesh=self.properize(hkmesh)
         return hkmesh
@@ -168,10 +168,10 @@ class KHGenerator(HGeneratorBase):
             operator=self.operatordict[op]
             paramname=self.op_param_map[operator.label]
             param=params.get(paramname,self.params.get(paramname))
-            if param==None or abs(param*operator.weight)<1e-8:
+            if param==None or abs(param*operator.factor)<1e-8:
                 #print 'Warning! Small parameter ',param,'! Ignored'
                 continue
-            hk=hk+operator.Hk(k=k,param=param*operator.weight)
+            hk=hk+operator.Hk(k=k,param=param)
         if self.propergauge and self.spaceconfig.natom>1:
             hk[...]=self.properize(hk,k)
         return hk
