@@ -16,20 +16,14 @@ class HGeneratorBase(object):
     '''
     This is a Basic Model contains only the most elementary lattice and energy informations.
 
-    Construct
-    ---------------------
-    HGeneratorBase(spaceconfig)
+    Construct:
+        HGeneratorBase(spaceconfig)
 
-    Attributes
-    -------------------
-    spaceconfig:
-        Space configuration(<SpaceConfig> instance).
-    operatordict: 
-        A dict of operators used in this model.
-    params:
-        The parameters used in this model, to set the hamiltonian orz ...
-    op_param_map:
-        The mapping of operator and parameters.
+    Attributes:
+        :spaceconfig: Space configuration(<SpaceConfig> instance).
+        :operatordict:  A dict of operators used in this model.
+        :params: The parameters used in this model, to set the hamiltonian orz ...
+        :op_param_map: The mapping of operator and parameters.
     '''
     def __init__(self,spaceconfig):
         self.spaceconfig=spaceconfig

@@ -15,7 +15,7 @@ from numpy.linalg import norm
 from matplotlib import patches
 from matplotlib.collections import LineCollection
 from scipy.sparse import coo_matrix,csr_matrix
-from copy import deepcopy
+import copy
 import time,pdb,numbers,re
 
 from utils import ind2c
@@ -45,7 +45,7 @@ class OperatorBase(object):
 
     def __mul__(self,target):
         if isinstance(target,numbers.Number):
-            op=deepcopy(self)
+            op=copy.copy(self)
             op.factor*=target
             return op
         else:
@@ -66,7 +66,7 @@ class OperatorBase(object):
 
     def __div__(self,target):
         if isinstance(target,numbers.Number):
-            op=deepcopy(self)
+            op=copy.copy(self)
             op.factor/=target
             return op
         else:
@@ -80,7 +80,7 @@ class OperatorBase(object):
             raise ValueError('Can not divide type %s and %s'%(type(self),type(target)))
 
     def __neg__(self):
-        op=deepcopy(self)
+        op=copy.copy(self)
         op.factor*=-1
         return op
 
@@ -112,6 +112,7 @@ class Operator(OperatorBase):
     Attributes:
         :label: The label of this operator.
         :suboperators: sub-<Xlinear>s.
+        :nsubop: integer, number of suboperators.
     '''
     def __init__(self,label,spaceconfig,suboperators=None,factor=1.):
         self.suboperators=[] if suboperators is None else suboperators
@@ -135,13 +136,16 @@ class Operator(OperatorBase):
         return H
 
     def __str__(self):
-        txt='%s -> %s*('%(self.label,self.factor)
+        txt='%s -> %s*('%(self.label,('%.4f'%self.factor).rstrip('0'))
         for i in xrange(len(self.suboperators)):
             operator=self.suboperators[i]
             if i!=0:
                 txt+=' + '
             txt+=operator.__str__()
         return txt+self.meta_info+')\n'
+
+    def __repr__(self):
+        return '<Operator %s>'%self.label
 
     def __add__(self,target):
         if isinstance(target,Xlinear):
@@ -153,7 +157,9 @@ class Operator(OperatorBase):
             else:
                 tops=[op*(target.factor/self.factor) for op in target.suboperators]
             newops=self.suboperators+tops
-            return Operator(label=self.label+target.label,spaceconfig=self.spaceconfig,suboperators=newops,factor=self.factor)
+            return Operator(label=self.label+'+'+target.label,spaceconfig=self.spaceconfig,suboperators=newops,factor=self.factor)
+        elif target==0:
+            return copy.copy(self)
         else:
             raise TypeError('Can not add for <Operator> and %s'%target.__class__)
 
@@ -162,6 +168,8 @@ class Operator(OperatorBase):
             return self.__add__(target)
         elif isinstance(target,Operator):
             return target.__add__(self)
+        elif target==0:
+            return copy.copy(self)
         else:
             raise TypeError('Can not add for %s and <Operator>'%target.__class__)
 
@@ -178,6 +186,11 @@ class Operator(OperatorBase):
             return self
         else:
             raise TypeError('Can not add for <Operator> and %s'%target.__class__)
+
+    @property
+    def nsubop(self):
+        '''Number of suboperators'''
+        return len(self.suboperators)
 
     def addsubop(self,subop,weight=None):
         '''
@@ -257,20 +270,24 @@ class Xlinear(OperatorBase):
             raise AttributeError('Can not find attribute %s'%name)
 
     def __str__(self):
-        txt='%s*('%(self.factor,)
+        txt=('%.4f'%self.factor).rstrip('0')+'*'
         inds=[self.spaceconfig.ind2c(ind) for ind in self.indices]
         c=['C_']*self.nbody
         for i in xrange(self.nbody):
             if self.spaceconfig.nspin==2:
                 c[i]+=('dn' if inds[i][1] else 'up')
             if self.spaceconfig.natom>=2:
-                c[i]+=chr(65+inds[i][2])
+                #c[i]+=chr(65+inds[i][2])
+                c[i]+=str(inds[i][2])
             if self.spaceconfig.norbit>=2:
                 c[i]+='o'+str(inds[i][3])
             if i<self.indices_ndag:
                 c[i]+='+'
         txt+=''.join(c)+self.meta_info
-        return txt+')'
+        return txt
+
+    def __repr__(self):
+        return self.__str__()
 
     def __call__(self,param=1.,dense=False,**kwargs):
         raise NotImplementedError()
@@ -314,14 +331,14 @@ class Operator_C(Xlinear):
         return self.indices[0]
 
     def __str__(self):
-        txt=''
-        txt+='%s*'%self.factor
+        txt=('%.4f'%self.factor).rstrip('0')+'*'
         inds=self.spaceconfig.ind2c(self.index)
         c='C_'
         if self.spaceconfig.nspin==2:
             c+=('dn' if inds[1] else 'up')
         if self.spaceconfig.natom>=2:
-            c+=chr(65+inds[2])
+           # c+=chr(65+inds[2])
+            c+=str(inds[2])
         if self.spaceconfig.norbit>=2:
             c+='o'+str(inds[3])
         if self.dag:
@@ -336,7 +353,7 @@ class Operator_C(Xlinear):
         param=param*self.factor
         if isinstance(self.spaceconfig,SuperSpaceConfig):
             nflv=self.spaceconfig.nflv
-            ind1=self.index[0]
+            ind1=self.index
             occ,unocc=[ind1],[]
             if self.dag:
                 occ,unocc=unocc,occ
@@ -373,7 +390,7 @@ class Bilinear(Xlinear):
         super(Bilinear,self).__init__(spaceconfig=spaceconfig,indices=[index1,index2],factor=factor)
 
     def __str__(self):
-        txt='%s*'%self.factor
+        txt=('%.4f'%self.factor).rstrip('0')+'*'
         inds=[self.spaceconfig.ind2c(self.index1),self.spaceconfig.ind2c(self.index2)]
         c=['C_','C_']
         for i in xrange(2):
@@ -382,7 +399,8 @@ class Bilinear(Xlinear):
             elif self.spaceconfig.smallnambu:
                 c[i]+=('dn' if inds[i][0] else 'up')
             if self.spaceconfig.natom>=2:
-                c[i]+=chr(65+inds[i][2])
+                #c[i]+=chr(65+inds[i][2])
+                c[i]+=str(inds[i][2])
             if self.spaceconfig.norbit>=2:
                 c[i]+='o'+str(inds[i][3])
             if self.spaceconfig.nnambu==2:
