@@ -102,12 +102,14 @@ def c2ind(c,N):
 
 def ind2c(ind,N):
     '''
-    Get the index of the index of the subspace from the total space N.
+    Trun global index into sub-indices.
 
-    ind:
-        the index of total space.
-    N:
-        the space config [n1,n2,n3...].
+    Parameters:
+        :ind: integer, the index of total space.
+        :N: 1D array, the space config [n1,n2,n3...].
+
+    Return:
+        1D array, the subindices.
     '''
     dim=len(N)
     indl=ndarray(list(shape(ind))+[dim],dtype='int32')
@@ -115,3 +117,5 @@ def ind2c(ind,N):
         indl[...,-1-i]=ind%N[-1-i]
         ind=ind/N[-1-i]
     return indl
+
+

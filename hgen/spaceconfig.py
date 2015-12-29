@@ -1,10 +1,14 @@
+'''
+SpaceConfiguration for hamiltonian.
+'''
 from numpy import *
 from numpy.linalg import *
 from scipy.misc import factorial
 from utils import ind2c,c2ind,s
-from matplotlib.pyplot import *
 from itertools import combinations
-import pdb
+from matplotlib.pyplot import *
+import pdb,time
+
 class SpaceConfig(object):
     SPACE_TOKENS=['nambu','spin','atom','orbit']
     '''
@@ -202,22 +206,22 @@ class SuperSpaceConfig(SpaceConfig):
         |up=0,dn=1> -> 2
         |up=1,dn=1> -> 3
 
-    ne_conserve:
-        True(default) if electron numbers are conserved else False.
+    Attributes:
+        :ne: integer/None, number of electrons, None for unrestricted.
+        :ne_conserve: bool, True if electron numbers are conserved else False(readonly).
+        :hndim: integer, the dimension of hilbert space.
+        :nsite: the number of sites(flavor).
     '''
-    def __init__(self,config,ne_conserve=False,spinless=False):
+    def __init__(self,config,ne=None,spinless=False):
         super(SuperSpaceConfig,self).__init__([1]+list(config)[-3:],kspace=False,spinless=True)
-        self.ne_conserve=ne_conserve
-        self.ne=0
-        if ne_conserve and config[0]==2:
-            print 'Warning! Please Don\'t Use Nambu Space to Cope With Electron Non-conserved System. Setting ne_conserve False and Continue ...'
-            self.ne_conserve=False
+        if ne is not None:
+            self.setne(ne)
+        else:
+            self.ne=None
+            self._table=None
 
-            #use a table to convert index to "True index - id"
-            self.table=sum(2**array(list(combinations(arange(self.nsite),ne))),axis=-1)
-
-        #binaryparser is a parser from config to index, use '&' operation to parse.
-        self.binaryparser=1 << arange(self.nsite)#-1,-1,-1)
+        #_binaryparser is a parser from config to index, use '&' operation to parse.
+        self._binaryparser=1 << arange(self.nsite)#-1,-1,-1)
 
 
     def __str__(self):
@@ -227,11 +231,17 @@ class SuperSpaceConfig(SpaceConfig):
         return super(SuperSpaceConfig,self).__getattr__(name)
 
     @property
+    def ne_conserve(self):
+        '''
+        Electron number conservative.
+        '''
+        return self.ne is not None
+
+    @property
     def nsite(self):
         '''
         The number of sites, note that it equivalent to nflv, superconducting space is needless.
         '''
-        #return prod(self.config[1:])
         res=self.ndim
         if self.nnambu==2 and (not self.smallnambu):
             res/=2
@@ -245,7 +255,7 @@ class SuperSpaceConfig(SpaceConfig):
         nsite=self.nsite
         ne=self.ne
         if self.ne_conserve:
-            hndim=factorial(nsite)/factorial(ne)/factorial(nsite-ne)
+            hndim=int(factorial(nsite)/factorial(ne)/factorial(nsite-ne))
         else:
             hndim=pow(2,nsite)
         return hndim
@@ -258,7 +268,7 @@ class SuperSpaceConfig(SpaceConfig):
             the number of atoms.
         '''
         super(SuperSpaceConfig,self).setnatom(natom)
-        self.binaryparser=1 << np.arange(self.nsite) #-1,-1,-1)
+        self._binaryparser=1 << np.arange(self.nsite) #-1,-1,-1)
 
     def setne(self,N):
         '''
@@ -268,19 +278,21 @@ class SuperSpaceConfig(SpaceConfig):
             the new eletron number.
         '''
         self.ne=N
-        self.table=sum(2**array(list(combinations(arange(self.nsite),N))),axis=-1)
+        comb=fromiter(combinations(arange(self.nsite),N),dtype=[('',int32)]*N).view((int32,N))
+        self._table=sort(sum(2**comb,axis=-1))
 
     def ind2config(self,index):
         '''
         Parse index into eletron configuration.
 
-        index:
-            the index(0 ~ hndim-1).
-        output:
-            A electron configuration, which is a len-nsite array with items 0,1(state without/with electron).
+        Parameters:
+            :index: integer/1D array, the index(0 ~ hndim-1).
+
+        Return:
+            1D array/2D array(dtype bool), A electron configuration.
         '''
         if self.ne_conserve:
-            id=self.table[index]
+            id=self._table[index]
             return self.id2config(id)
         else:
             return self.id2config(index)
@@ -289,15 +301,16 @@ class SuperSpaceConfig(SpaceConfig):
         '''
         Parse eletron configuration to index.
 
-        config:
-            A electron configuration is len-nsite array with items 0,1(state without/with electron).
-        output: 
+        Parameters:
+            :config: 1D/2D array, A electron configuration is len-nsite array with items 0,1(state without/with electron).
+
+        Return: 
             a index(0 ~ hndim-1).
         '''
         if self.ne_conserve:
             #parse config to id - the number representation
             id=self.config2id(config)
-            return searchsorted(self.table,id)
+            return searchsorted(self._table,id)
         else:
             return self.config2id(config)
 
@@ -305,8 +318,8 @@ class SuperSpaceConfig(SpaceConfig):
         '''
         Display a config of electron.
 
-        config:
-            len-nsite array with items 0,1(state without/with electron).
+        Parameters:
+            :config: 1D array/2D array, len-nsite array with items 0,1(state without/with electron).
         '''
         cfg=config.reshape(self.config)
         cfg=swapaxes(cfg,-1,-2).reshape([-1,self.natom])
@@ -318,39 +331,40 @@ class SuperSpaceConfig(SpaceConfig):
         '''
         Convert config to id
 
-        config:
-            an array of 0 and 1 that indicates the config of electrons.
+        Parameters:
+            :config: 1D array/2D array, an array of 0 and 1 that indicates the config of electrons.
+
+        Return:
+            integer/1D array, indices.
         '''
-        return sum(config*self.binaryparser,axis=-1)
+        return sum(config*self._binaryparser,axis=-1)
 
     def id2config(self,id):
         '''
         Convert id to config.
 
-        id:
-            a number indicate the whole space index.
+        Parameters:
+            :id: a number indicate the whole space index.
+
+        Return:
+            1D array/2D array, the configuration of electrons.
         '''
         if ndim(id)>0:
             id=id[...,newaxis]
-        return (id & self.binaryparser)>0
+        return (id & self._binaryparser)>0
 
     def indices_occ(self,occ=[],unocc=[],getreverse=False,count_e=False):
         '''
         Find the indices with specific sites occupied.
 
-        occ:
-            the sites with electron. default is no site.
-        unocc:
-            unoccupied sites. default is no site.
-        getreverse:
-            get a reversed state(with occ unoccupied and unocc occupied) at the same time.
-        count_e:
-            count electron numbers between two indices ind1 < site < ind2.
-        output:
-            a list of indices.
+        Parameters:
+            :occ: list, the sites with electron. default is no site.
+            :unocc: list, unoccupied sites. default is no site.
+            :getreverse: bool, get a reversed state(with occ unoccupied and unocc occupied) at the same time.
+            :count_e: bool, count electron numbers between two indices ind1 < site < ind2.
 
-        return:
-            [states meets requirements, final states(if get reverse), electrons between these(valid for 1,2) sites(or before this site)]
+        Return:
+            list, [states meets requirements, final states(if get reverse), electrons between these(valid for 1,2) sites(or before this site)]
         '''
         occ=unique(occ).astype('int32')
         unocc=unique(unocc).astype('int32')
@@ -375,11 +389,11 @@ class SuperSpaceConfig(SpaceConfig):
             #turn into indices.
             ids0=(2**distri).sum(axis=-1)
             ids=ids0+(2**occ).sum()
-            indices=searchsorted(self.table,ids)
+            indices=searchsorted(self._table,ids)
             res=[indices]
             if getreverse:
                 rids=ids0+(2**unocc).sum()
-                res.append(searchsorted(self.table,rids))
+                res.append(searchsorted(self._table,rids))
             if count_e:
                 res.append(ecounter)
             return tuple(res)
@@ -390,7 +404,7 @@ class SuperSpaceConfig(SpaceConfig):
                     ecounter=distri[...,usedsites[0]:usedsites[1]-1].sum(axis=-1)
                 elif no+nn==1:
                     ecounter=distri[...,:usedsites[0]].sum(axis=-1)
-            parser=delete(self.binaryparser,usedsites)
+            parser=delete(self._binaryparser,usedsites)
             ids0=(distri*parser).sum(axis=-1)
             ids=ids0+(2**occ).sum()
             res=[ids]

@@ -40,6 +40,27 @@ class TestLinear():
             assert_allclose((data1+data2-0.3*data1+0.5*(data2/3.+data1*2.)).toarray(),(bl1+bl2-0.3*bl1+0.5*(bl2/3.+bl1*2.))(dense=True))
         else:
             assert_allclose(data1+data2-0.3*data1+0.5*(data2/3.+data1*2.),(bl1+bl2-0.3*bl1+0.5*(bl2/3.+bl1*2.))(dense=True))
-        pdb.set_trace()
 
-TestLinear().test_xlinear()
+class Test_config():
+    def __init__(self):
+        self.sscfg=SuperSpaceConfig([2,5,2])
+        self.sscfg_ne=SuperSpaceConfig([2,5,2],ne=10)
+        self.scfgs=[self.sscfg,self.sscfg_ne]
+
+    def test_indconfig(self):
+        '''test for ind-config parsing.'''
+        for scfg in self.scfgs[:2]:
+            print 'Running test for ',scfg
+            #test for 1D array of ind.
+            ind=random.randint(0,scfg.hndim,10)
+            config=scfg.ind2config(ind)
+            ind2=scfg.config2ind(config)
+            assert_(all(ind2==ind))
+            #test for integer ind.
+            ind=random.randint(0,scfg.hndim)
+            config=scfg.ind2config(ind)
+            ind2=scfg.config2ind(config)
+            assert_(ind2==ind)
+
+#TestLinear().test_xlinear()
+Test_config().test_indconfig()
