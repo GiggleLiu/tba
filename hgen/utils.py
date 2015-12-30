@@ -87,12 +87,14 @@ def c2ind(c,N):
     '''
     Get the index of the total space N from the index of the subspace exression (n1 x n2 x n3...)
 
-    c: 
-        a list of indexes like [i,j,k,...]
-    N: 
-        the space config [n1,n2,n3...].
+    Parameters:
+        :c: 1D array/2D array, a list of indexes like [i,j,k,...]
+        :N: 1D array, the space config [n1,n2,n3...].
+
+    Return:
+        integer/1D array, indices.
     '''
-    assert(len(c)==len(N))
+    assert(shape(c)[-1]==len(N))
     c=array(c)
     n=c.shape[-1]
     cc=c[...,0]

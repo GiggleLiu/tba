@@ -1,6 +1,6 @@
 from numpy import *
 from numpy.testing import dec,assert_,assert_raises,assert_almost_equal,assert_allclose
-import sys
+import sys,pdb
 
 from op import *
 from oplib import *
@@ -8,7 +8,7 @@ from spaceconfig import *
 
 class TestLinear():
     def __init__(self):
-        self.spaceconfig=SuperSpaceConfig([1,2,4,1])
+        self.spaceconfig=SuperSpaceConfig([1,2,4,2])
 
     def get_random_xlinear(self,n,nbody):
         '''get n random nbody linears'''
@@ -21,11 +21,56 @@ class TestLinear():
             if nbody==2:
                 item=Bilinear(scfg,index1=indices[0],index2=indices[1],factor=random.random())
             elif nbody==4:
-                item=Qlinear_ninj(scfg,i=indices[0],j=indices[1],factor=random.random())
+                i=indices[0]
+                j=indices[1]
+                if i==j:
+                    j=j-1 if j!=0 else j+1
+                item=Qlinear_ninj(scfg,i=i,j=j,factor=random.random())
             else:
                 item=Xlinear(scfg,indices=indices,factor=random.random())
+            item*=random.random()
             res.append(item)
         return res
+
+    def get_random_operator(self,n,nbody=None):
+        '''
+        get random operator with n xlinears.
+        '''
+        scfg=self.spaceconfig
+        nbody=random.choice([1,2,4]) if nbody is None else nbody
+        xl=self.get_random_xlinear(n,nbody)
+        op=sum(xl)
+        op=op*random.random()
+        return op
+
+    def test_site_shift(self):
+        shift=2
+        new_spaceconfig=SuperSpaceConfig([1,2,7,1])
+        op=self.get_random_operator(n=5,nbody=2)
+        nop=site_shift(op,shift,new_spaceconfig)
+        op2=site_shift(nop,-shift,self.spaceconfig)
+        print 'old-operator',op
+        print 'shifted-operator',nop
+        assert_(op.factor==op2.factor)
+        for o1,o2 in zip(op.suboperators,op2.suboperators):
+            assert_(o1.factor==o2.factor)
+            assert_(o1.factor==o2.factor)
+            assert_allclose(o1.indices,o2.indices)
+
+    def test_op_fusion(self):
+        shift=2
+        n1,n2,n3=2,3,4
+        op1=self.get_random_operator(n=n1,nbody=2)
+        op2=self.get_random_operator(n=n2,nbody=2)
+        op3=self.get_random_operator(n=n3,nbody=2)
+        nop=op_fusion(label='newlabel',operators=[op1,op2,op3])
+        assert_(nop.label=='newlabel')
+        scfg=nop.spaceconfig
+        atomaxis=scfg.get_axis('atom')
+        for o1,o2 in zip(op2.suboperators,nop.suboperators[n1:n1+n2]):
+            assert_(all(scfg.ind2c(o2.indices)[:,atomaxis]==self.spaceconfig.ind2c(o1.indices)[:,atomaxis]+self.spaceconfig.natom))
+        for o1,o2 in zip(op3.suboperators,nop.suboperators[n1+n2:]):
+            assert_(all(scfg.ind2c(o2.indices)[:,atomaxis]==self.spaceconfig.ind2c(o1.indices)[:,atomaxis]+2*self.spaceconfig.natom))
 
     def test_xlinear(self):
         bl1,bl2=self.get_random_xlinear(2,4)
@@ -63,4 +108,6 @@ class Test_config():
             assert_(ind2==ind)
 
 #TestLinear().test_xlinear()
-Test_config().test_indconfig()
+#TestLinear().test_site_shift()
+TestLinear().test_op_fusion()
+#Test_config().test_indconfig()

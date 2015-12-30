@@ -9,6 +9,8 @@ from itertools import combinations
 from matplotlib.pyplot import *
 import pdb,time
 
+__all__=['SpaceConfig','SuperSpaceConfig','SpinSpaceConfig']
+
 class SpaceConfig(object):
     SPACE_TOKENS=['nambu','spin','atom','orbit']
     '''
@@ -31,20 +33,17 @@ class SpaceConfig(object):
         4. norbit, number of orbits.
     kspace:
         True if k is a good quantum number and you decided to work in k space.
-    spinless:
-        infers a spinless system if True. default is False.
     '''
-    def __init__(self,config,kspace=True,spinless=False):
+    def __init__(self,config,kspace=True):
         self.config=array(config)
         self.kspace=kspace
-        self.spinless=spinless
 
     def __str__(self):
         return ' x '.join(['%s(%s)'%(token,n) for token,n in zip(self.SPACE_TOKENS,self.config)])
 
     def __getattr__(self,name):
         if name=='smallnambu':
-            return self.nnambu==2 and self.nspin==1 and (not self.spinless)
+            return self.nnambu==2 and self.nspin==1
         elif name=='superconduct':
             return self.nnambu==2
         elif name=='nambuindexer':
@@ -85,6 +84,13 @@ class SpaceConfig(object):
         '''
         return self.ndim
 
+    def get_axis(self,token):
+        '''
+        Get the axis index of specific token.
+        '''
+        assert(token in self.SPACE_TOKENS)
+        return self.SPACE_TOKENS.index(token)
+
     def setnatom(self,N):
         '''
         Set atom number.
@@ -116,7 +122,7 @@ class SpaceConfig(object):
             spinindex=0
         if indices is None:
             indices=[nambuindex,spinindex,atomindex,orbitindex]
-        return c2ind(indices,N=self.config[-len(indices):])
+        return c2ind(indices,N=self.config[-shape(indices)[-1]:])
 
     def subspace2(self,nambus=None,spins=None,atoms=None,orbits=None):
         '''
@@ -212,8 +218,8 @@ class SuperSpaceConfig(SpaceConfig):
         :hndim: integer, the dimension of hilbert space.
         :nsite: the number of sites(flavor).
     '''
-    def __init__(self,config,ne=None,spinless=False):
-        super(SuperSpaceConfig,self).__init__([1]+list(config)[-3:],kspace=False,spinless=True)
+    def __init__(self,config,ne=None):
+        super(SuperSpaceConfig,self).__init__([1]+list(config)[-3:],kspace=False)
         if ne is not None:
             self.setne(ne)
         else:
@@ -430,7 +436,7 @@ class SpinSpaceConfig(SpaceConfig):
     SPACE_TOKENS=['spin','atom']
     def __init__(self,config):
         assert(len(config)==2 and config[0]>1)
-        super(SpinSpaceConfig,self).__init__(config,kspace=False,spinless=False)
+        super(SpinSpaceConfig,self).__init__(config,kspace=False)
 
     @property
     def hndim(self):

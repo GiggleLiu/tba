@@ -249,12 +249,16 @@ class Xlinear(OperatorBase):
             return target.__radd__(self)
         elif isinstance(target,Xlinear):
             return Operator(label='OP',spaceconfig=self.spaceconfig,suboperators=[self,target])
+        elif isinstance(target,numbers.Number) and target==0:
+            return copy.copy(self)
         else:
-            raise TypeError('Can not add %s with %s.'%(self.__class__,target.__class__))
+            raise TypeError('Can not add %s with %s.'%(self.__class__,target))
 
     def __radd__(self,target):
         if isinstance(target,OperatorBase):
             return target.__add__(self)
+        elif isinstance(target,numbers.Number) and target==0:
+            return copy.copy(self)
         else:
             raise TypeError('Can not add %s with %s.'%(target.__class__,self.__class__))
 
@@ -573,10 +577,7 @@ class Qlinear_ninj(Qlinear):
     '''
     def __init__(self,spaceconfig,i,j,factor=1.):
         if i==j:
-            print 'Warning: Reducing it to Blinear!'
-            self=Bilinear(spaceconfig=spaceconfig,index1=i,index2=j,factor=factor)
-            return
-
+            raise ValueError('Operator ni^2 should be reduced to bilinear!')
         #note that it will take a '-' sign for (ni,nj) to transform to normal order
         factor*=-1
         super(Qlinear_ninj,self).__init__(spaceconfig=spaceconfig,indices=[i,j,i,j],factor=factor)

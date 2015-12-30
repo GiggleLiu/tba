@@ -2,12 +2,13 @@
 Operator Construction methods.
 '''
 from numpy import *
-import pdb
+import pdb,copy,time
 
 from op import *
 from utils import sx,sy,sz
+from spaceconfig import *
 
-__all__=['op_from_mats','op_U','op_V','op_c','op_cdag','op_simple_onsite','op_simple_hopping','op_M']
+__all__=['op_from_mats','op_U','op_V','op_c','op_cdag','op_simple_onsite','op_simple_hopping','op_M','site_shift','op_fusion']
 
 def op_from_mats(label,spaceconfig,mats,bonds=None):
     '''
@@ -345,3 +346,75 @@ def op_simple_hopping(label,spaceconfig,bonds):
         for x,y in zip(ind1s,ind2s):
             opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=1.)
     return opt
+
+def site_shift(op,n,new_spaceconfig):
+    '''
+    Shift site of the specific opertor by changing indices.
+
+    Parameters:
+        :op: <Operator>/<Xlinear>, the operator.
+        :n: integer, the sites to shift.
+        :new_spaceconfig: <SpaceConfig>/None, the new space configuration, leave it `None` to use the old one.
+    '''
+    if new_spaceconfig is None:
+        new_spaceconfig=operator.spaceconfig
+    if isinstance(op,Operator):
+        nop=0
+        for xl in op.suboperators:
+            nop=nop+site_shift(xl,n,new_spaceconfig=new_spaceconfig)
+        nop.label=op.label
+        return op.factor*nop
+    elif isinstance(op,Xlinear):
+        op=copy.copy(op)
+        old_c=op.spaceconfig.ind2c(op.indices)
+        old_c[:,op.spaceconfig.get_axis('atom')]+=n
+        new_indices=new_spaceconfig.c2ind(old_c)
+        op.indices=new_indices
+        op.spaceconfig=new_spaceconfig
+        return op
+    else:
+        raise TypeError()
+
+def op_fusion(label,operators):
+    '''
+    Combine operators in cluster into blocks.
+
+    Parameters:
+        :label: The label of fusioned operator.
+        :operators: The operators of cluster.
+
+    Return:
+        <Operator>, the operator after fusion.
+    '''
+    scfg=operators[0].spaceconfig
+    natoms=[]
+    is_super=isinstance(scfg,SuperSpaceConfig)
+    ne=0
+    for operator in operators:
+        natoms.append(operator.spaceconfig.natom)
+        if is_super and operator.spaceconfig.ne is not None:
+            ne+=ne
+    atomshift=append([0],cumsum(natoms))
+
+    #get the new spaceconfig
+    totalnatom=sum(natoms)
+    config=list(scfg.config)
+    if is_super:
+        if ne==0:ne=None
+        config[scfg.get_axis('atom')]=totalnatom
+        spaceconfig=SuperSpaceConfig(config,ne=ne)
+    elif isinstance(scfg,SpaceConfig):
+        config[scfg.get_axis('atom')]=totalnatom
+        spaceconfig=SpaceConfig(config,kspace=scfg.kspace)
+    elif isinstance(scfg,SpinSpaceConfig):
+        config[scfg.get_axis('atom')]=totalnatom
+        spaceconfig=SpinSpaceConfig(config)
+    else:
+        raise ValueError()
+
+    #fusion operators
+    nop=0
+    for op,shift in zip(operators,atomshift[:-1]):
+        nop=nop+site_shift(op,n=shift,new_spaceconfig=spaceconfig)
+    nop.label=label
+    return nop
