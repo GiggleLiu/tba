@@ -1,6 +1,7 @@
 from spaceconfig import *
 from mesh import *
-from operator import *
+from op import *
 from oplib import *
 from generator import *
-__all__=['mesh','spaceconfig','operator','oplib','generator']
+from utils import *
+__all__=['mesh','spaceconfig','op','oplib','generator','utils']

@@ -155,6 +155,8 @@ class Operator(OperatorBase):
             if self.factor==1 and target.factor==1:
                 tops=target.suboperators
             else:
+                if self.factor==0:
+                    return copy.copy(target)
                 tops=[op*(target.factor/self.factor) for op in target.suboperators]
             newops=self.suboperators+tops
             return Operator(label=self.label+'+'+target.label,spaceconfig=self.spaceconfig,suboperators=newops,factor=self.factor)
@@ -202,7 +204,7 @@ class Operator(OperatorBase):
             The weight of suboperator.
         '''
         if weight!=None:
-            subop.factor=weight
+            subop.factor*=weight
         self.suboperators.append(subop)
 
     def Hk(self,k,param=1.):

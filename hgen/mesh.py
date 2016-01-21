@@ -112,7 +112,7 @@ class Hmesh(object):
         if type(data)==str:
             self.data=loadtxt(data)
         else:
-            self.data=data
+            self.data=asarray(data)
 
     @property
     def size(self):
@@ -142,7 +142,7 @@ class Hmesh(object):
             for ek,vk in dmesh:
                 ekl.append(ek)
                 vkl.append(vk)
-            return reshape(ekl,self.data.shape[:,-1]),reshape(vkl,self.data.shape)
+            return reshape(ekl,self.data.shape[:-1]),reshape(vkl,self.data.shape)
         else:
             return reshape(dmesh,self.data.shape[:-1])
 

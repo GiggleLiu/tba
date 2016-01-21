@@ -7,5 +7,6 @@ from kspace import *
 from fs import *
 from group import *
 from path import *
+from utils import *
 
 #__all__=['bond','structure','lattice','latticelib','bzone','path','kspace','fs','group']

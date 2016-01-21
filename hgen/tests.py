@@ -5,6 +5,8 @@ import sys,pdb
 from op import *
 from oplib import *
 from spaceconfig import *
+sys.path.insert(0,'../lattice')
+from bond import Bond
 
 class TestLinear():
     def __init__(self):
@@ -72,6 +74,28 @@ class TestLinear():
         for o1,o2 in zip(op3.suboperators,nop.suboperators[n1+n2:]):
             assert_(all(scfg.ind2c(o2.indices)[:,atomaxis]==self.spaceconfig.ind2c(o1.indices)[:,atomaxis]+2*self.spaceconfig.natom))
 
+    def test_oponbond(self):
+        natom=self.spaceconfig.natom
+        dim1=self.spaceconfig.ndim/natom
+        #test on-site
+        mats=[0.5*identity(dim1)]*natom
+        bonds=[Bond(zeros(2),i,i) for i in xrange(natom)]
+        op=op_on_bond(label='E',spaceconfig=self.spaceconfig,mats=mats,bonds=bonds)
+        print 'Get operator,',op
+        for i in xrange(natom):
+            for j in xrange(dim1):
+                assert_(all(self.spaceconfig.ind2c(op.suboperators[dim1*i+j].indices)[:,-2]==ones(2)*i))
+                assert_(all(op.suboperators[dim1*i+j].factor==0.5))
+        #test for nearest hopping
+        mats=[0.5*identity(dim1)]*(natom-1)
+        bonds=[Bond(array([1,0]),i,i+1) for i in xrange(natom-1)]
+        op=op_on_bond(label='T',spaceconfig=self.spaceconfig,mats=mats,bonds=bonds)
+        print 'Get operator,',op
+        for i in xrange(natom-1):
+            for j in xrange(dim1):
+                assert_(all(self.spaceconfig.ind2c(op.suboperators[dim1*i+j].indices)[:,-2]==array([i,i+1])))
+                assert_(all(op.suboperators[dim1*i+j].factor==0.5))
+
     def test_xlinear(self):
         bl1,bl2=self.get_random_xlinear(2,4)
         print '%s + %s = %s'%(bl1,bl2,bl1+bl2)
@@ -110,4 +134,5 @@ class Test_config():
 #TestLinear().test_xlinear()
 #TestLinear().test_site_shift()
 TestLinear().test_op_fusion()
+TestLinear().test_oponbond()
 #Test_config().test_indconfig()

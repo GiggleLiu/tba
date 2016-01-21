@@ -8,20 +8,19 @@ from op import *
 from utils import sx,sy,sz
 from spaceconfig import *
 
-__all__=['op_from_mats','op_U','op_V','op_c','op_cdag','op_simple_onsite','op_simple_hopping','op_M','site_shift','op_fusion']
+__all__=['op_from_mats','op_on_bond','op_U','op_V','op_c','op_cdag','op_simple_onsite','op_simple_hopping','op_M','site_shift','op_fusion']
 
 def op_from_mats(label,spaceconfig,mats,bonds=None):
     '''
     get operator from mats.
 
-    label:
-        the label of this operator.
-    spaceconfig:
-        the spaceconfig of this operator.
-    mats:
-        the hopping matrices.
-    bonds:
-        the bonds.
+    Parameters:
+        :label: str, the label of this operator.
+        :spaceconfig: <SpaceConfig>, the spaceconfig of this operator.
+        :mats: list of 2D array, the hopping matrices.
+        :bonds: <Bond>, the bonds.
+    Return:
+        <Operator>, the operator.
     '''
     tol=1e-12
     opt=Operator(label,spaceconfig,factor=1.)
@@ -39,6 +38,49 @@ def op_from_mats(label,spaceconfig,mats,bonds=None):
             xs,ys=where(nzmask)
             for x,y in zip(xs,ys):
                 opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=mat[x,y])
+    return opt
+
+def op_on_bond(label,spaceconfig,mats,bonds):
+    '''
+    Get operator on specific link.
+
+    Parameters:
+        :label: str, label of operator.
+        :mats: 3D array, the operator matrix.
+        :spaceconfig: <SpaceConfig>, the spaceconfig for the operator.
+        :bonds: <BondCollection>/list of <Bond>, the bonds.
+
+    Return:
+        <Operator>, the operator.
+    '''
+    tol=1e-12
+    opt=Operator(label,spaceconfig,factor=1.)
+    config=list(spaceconfig.config)
+    atomaxis=spaceconfig.get_axis('atom')
+    config[atomaxis]=1
+    if isinstance(spaceconfig,SuperSpaceConfig):
+        spaceconfig1=SuperSpaceConfig(config,ne=spaceconfig.ne)
+    elif isinstance(spaceconfig,SpaceConfig):
+        spaceconfig1=SpaceConfig(config,kspace=spaceconfig.kspace)
+    elif isinstance(spaceconfig,SpinSpaceConfig):
+        spaceconfig1=SpinSpaceConfig(config)
+    else:
+        raise TypeError()
+
+    #add bilinears
+    assert(len(mats)==len(bonds))
+    for mat,bond in zip(mats,bonds):
+        nzmask=abs(mat)>tol
+        xs,ys=where(nzmask)
+        for x,y in zip(xs,ys):
+            c1,c2=spaceconfig1.ind2c(x),spaceconfig1.ind2c(y)
+            c1[atomaxis]=bond.atom1
+            c2[atomaxis]=bond.atom2
+            index1,index2=spaceconfig.c2ind(c1),spaceconfig.c2ind(c2)
+            if bond.atom1==bond.atom2:
+                opt.addsubop(Bilinear(spaceconfig,index1=index1,index2=index2),weight=mat[x,y])
+            else:
+                opt.addsubop(BBilinear(spaceconfig,index1=index1,index2=index2,bondv=bond.bondv),weight=mat[x,y])
     return opt
 
 def op_U(spaceconfig,sites=None,label='U'):

@@ -5,6 +5,7 @@ Bond related objects and functions.
 from numpy import *
 from matplotlib.pyplot import *
 from matplotlib.collections import LineCollection
+from numpy.linalg import norm
 import pdb
 
 __all__=['Bond','BondCollection','show_bonds']
@@ -25,6 +26,9 @@ class Bond(object):
 
     def __eq__(self,bond2):
         return (all(self.bondv==bond2.bondv)) & (self.atom1==bond2.atom1) & (self.atom2==bond2.atom2)
+
+    def __neg__(self):
+        return self.getreverse()
 
 
 class BondCollection(object):

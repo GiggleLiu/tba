@@ -117,4 +117,13 @@ class KSpace(object):
         Show the k-mesh of this <KSpace> instance.
         '''
         scatter(self.kmesh[...,0],self.kmesh[...,1],**kwargs)
+        if self.vdim!=2:
+            return
+        for pname,ps in self.special_points.iteritems():
+            if ndim(ps)==1:
+                ps=[ps]
+            for i in xrange(len(ps)):
+                x,y=ps[i]
+                text(x,y,pname)
+                scatter(x,y,edgecolor='none',color='r')
 

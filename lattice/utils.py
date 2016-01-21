@@ -54,12 +54,11 @@ def meshgrid_v(siteconfig,vecs):
     '''
     Get the meshgrid in a vector space.
 
-    siteconfig:
-        The configuration of sites.
-    evcs:
-        The vectors spanning this space.
+    Parameters:
+        :siteconfig: list of 1D array, the configuration of sites.
+        :evcs: list of 1D array, the vectors spanning this space.
 
-    *return*:
+    Return:
         The ND+1 meshgrid defined on this vector space.
     '''
     mg=ix_(*siteconfig)
