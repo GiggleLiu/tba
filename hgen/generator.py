@@ -92,9 +92,21 @@ class HGeneratorBase(object):
             paramname=self.op_param_map[operator.label]
             param=params.get(paramname,self.params.get(paramname))
             if param==None or abs(param)<1e-8:
-                #print 'Warning! Small parameter ',param,'! Ignored'
                 continue
             h=h+operator(param=param,dense=dense)
+        return h
+
+    def get_opH(self,params={}):
+        '''
+        Get the operator for Hamiltonian.'''
+        h=0
+        for op in self.operatordict.keys():
+            operator=self.operatordict[op]
+            paramname=self.op_param_map[operator.label]
+            param=params.get(paramname,self.params.get(paramname))
+            if param==None or abs(param)<1e-8:
+                continue
+            h=h+param*operator
         return h
 
 class KHGenerator(HGeneratorBase):

@@ -451,3 +451,20 @@ class SpinSpaceConfig(SpaceConfig):
             return s[index]
         else:
             raise NotImplementedError()
+
+    def subspace(self,spinindex=None,atomindex=None):
+        '''
+        Get the subspace mask.
+
+        nambuindex/spinindex/atomindex/orbitindex:
+            nambu/spin/atomindex/orbitindex index, default is all indices.
+        '''
+        if self.smallnambu:
+            spinindex=0
+        mask=ones(self.ndim,dtype='bool')
+        if spinindex!=None:
+            mask=mask & (self.spinindexer==spinindex)
+        if atomindex!=None:
+            mask=mask & (self.atomindexer==atomindex)
+        return mask
+

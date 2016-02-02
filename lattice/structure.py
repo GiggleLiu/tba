@@ -277,6 +277,8 @@ class Structure(object):
         c:
             color, default is 'r' -red.
         '''
+        if ndim(nth)==0:
+            nth=[nth]
         nnnbonds=self.__nnnbonds__
         if nnnbonds is None or len(nnnbonds)<=1:
             warnings.warn('Trivial bonds @Structure.show_bond, give up.')
