@@ -9,7 +9,7 @@ from matplotlib.pyplot import *
 import scipy.sparse as sps
 import pdb,time
 
-__all__=['sx','sy','sz','s','H2G','s2vec','vec2s','ind2c','c2ind']
+__all__=['sx','sy','sz','s','H2G','s2vec','vec2s','ind2c','c2ind','perm_parity']
 
 ############################ DEFINITIONS ##############################
 # pauli spin
@@ -120,4 +120,20 @@ def ind2c(ind,N):
         ind=ind/N[-1-i]
     return indl
 
-
+def perm_parity(perm):
+    """ 
+    Returns the parity of the perm(0 or 1). 
+    """
+    size=len(perm)
+    unchecked=ones(size,dtype='bool')
+    #c counts the number of cycles in the perm including 1 cycles
+    c=0
+    for j in xrange(size):
+        if unchecked[j]:
+            c=c+1
+            unchecked[j]=False
+            i=j
+            while perm[i]!=j:
+                i=perm[i]
+                unchecked[i]=False
+    return (size-c)%2

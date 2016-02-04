@@ -128,6 +128,10 @@ class Hmesh(object):
         '''Save the hamiltonian data.'''
         save(filename,self.data)
 
+    def check_hermicity(self):
+        '''Return True if is hermitian.'''
+        return not any(abs(swapaxes(self.data,-1,-2).conj()-self.data)>1e-10)
+
     def getemesh(self,evalvk=False):
         '''
         Get an Ek(with or without vk) mesh.

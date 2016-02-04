@@ -69,6 +69,15 @@ class BondCollection(object):
     def __len__(self):
         return self.N
 
+    def __add__(self,target):
+        if isinstance(target,BondCollection):
+            return BondCollection(atom1s=append(self.atom1s,target.atom1s),atom2s=append(self.atom2s,target.atom2s),bondvs=concatenate([self.bondvs,target.bondvs],axis=0))
+        else:
+            raise NotImplementedError()
+
+    def __radd__(self,target):
+        return target.__add__(self)
+
     @property
     def N(self):
         '''The number of bonds'''

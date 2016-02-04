@@ -18,7 +18,7 @@ from scipy.sparse import coo_matrix,csr_matrix
 import copy
 import time,pdb,numbers,re
 
-from utils import ind2c
+from utils import ind2c,perm_parity
 from spaceconfig import SuperSpaceConfig,SpaceConfig
 
 __all__=['OperatorBase','Operator','Bilinear','BBilinear','Operator_C','Qlinear','Qlinear_ninj','Xlinear']
@@ -31,10 +31,11 @@ class OperatorBase(object):
         Operator(label,spaceconfig,factor=1.)
 
     Attributes:
-        :spaceconfig: The configuration of Hamiltonian, an instance of SpaceConfig(or it's derived classes).
-        :factor: Multiplication factor. 
-        :suboperators: Sibling-operators.
-        :meta_info: Displayed in the __str__ as bonus infomation.
+        :spaceconfig: <SpaceConfig>, the configuration of Hamiltonian, an instance of SpaceConfig(or it's derived classes).
+        :factor: float, multiplication factor. 
+        :suboperators: list of <Xlinear>, sibling-operators.
+        :meta_info: str, displayed in the __str__ as bonus infomation.
+        :HC: <OperatorBase>, the hermitian conjugate.
         
         Mathematic operations like `op+op`, `op-op`, `op*num`, `num*op`, `op/num`, `-op` are supported.
     '''
@@ -104,6 +105,12 @@ class OperatorBase(object):
 
     def __call__(self,*args,**kwargs):
         raise NotImplementedError()
+
+    @property
+    def HC(self):
+        '''get the hermition conjugate'''
+        raise NotImplementedError()
+
 
 class Operator(OperatorBase):
     '''
@@ -226,6 +233,13 @@ class Operator(OperatorBase):
             H+=operator.Hk(k=k,param=param*self.factor)
         return H
 
+    @property
+    def HC(self):
+        '''
+        Get the hermitian conjugate.
+        '''
+        return Operator(label=self.label,spaceconfig=self.spaceconfig,factor=conj(self.factor),suboperators=[op.HC for op in self.suboperators])
+
 class Xlinear(OperatorBase):
     '''
     Xlinear class(N body operator).
@@ -296,17 +310,21 @@ class Xlinear(OperatorBase):
         return self.__str__()
 
     def __call__(self,param=1.,dense=False,**kwargs):
-        raise NotImplementedError()
-        #first get all posible distribution of eletrons with site2 and site1 both occupied/unoccupied(reverse).
-        indices=self.spaceconfig.indices_occ(occ=self.indices[self.indices_ndag:])[0]
-        #set the H matrix, note the '-' sign befor self.factor.
-        data=param*(-self.factor)*ones(indices.shape,dtype='complex128')
+        '''
+        Refer Operator.__call__
+        '''
+        if len(unique(self.indices))!=self.nbody:
+            raise NotImplementedError('Indices are not allowed to overlap at this moment.')
+        indices1,indices2,ne=self.spaceconfig.indices_occ(unocc=self.indices[:self.indices_ndag],occ=self.indices[self.indices_ndag:],count_e=True,getreverse=True)
+        parity=perm_parity(argsort(self.indices))
+        sign=1-2*((sum(ne,axis=0)+parity)%2)
+        data=self.factor*param*sign
         if not dense:
-            h=coo_matrix((data,(indices,indices)),shape=[self.spaceconfig.hndim]*2)
+            h=coo_matrix((data,(indices1,indices2)),shape=[self.spaceconfig.hndim]*2)
             return h
         else:
             H=zeros(shape=[self.spaceconfig.hndim]*2,dtype='complex128')
-            H[indices,indices]+=data
+            H[indices1,indices2]+=data
             return H
 
     @property
@@ -314,6 +332,12 @@ class Xlinear(OperatorBase):
         '''N body operator.'''
         return len(self.indices)
 
+    @property
+    def HC(self):
+        '''
+        Get the hermitian conjugate.
+        '''
+        return self.__class__(indices=self.indices[::-1],spaceconfig=self.spaceconfig,indices_ndag=self.nbody-self.indices_ndag,factor=conj(self.factor))
 
 class Operator_C(Xlinear):
     '''
@@ -335,6 +359,13 @@ class Operator_C(Xlinear):
     def index(self):
         '''The index of this c operator.'''
         return self.indices[0]
+
+    @property
+    def HC(self):
+        '''
+        Get the hermitian conjugate.
+        '''
+        return Operator_C(spaceconfig=self.spaceconfig,index=self.index,dag=not self.dag,factor=conj(self.factor))
 
     def __str__(self):
         txt=('%.4f'%self.factor).rstrip('0')+'*'
@@ -370,7 +401,7 @@ class Operator_C(Xlinear):
             sparam=array([param]*len(index1))
             #ind1 passes eletrons [0,ind1)
             #the sign is equal to the electrons site<ind1
-            sparam[count_e%2==1]*=-1
+            sparam[count_e[0]%2==1]*=-1
             if dense:
                 h=zeros(shape=[self.spaceconfig.hndim]*2,dtype='complex128')
                 h[index1,index2]=sparam
@@ -384,6 +415,8 @@ class Operator_C(Xlinear):
 class Bilinear(Xlinear):
     '''
     Bilinear class, it is a special Operator with only one bilinear. It consititue the lowest layer of Operator tree.
+
+    H = C1^dag C2
 
     Construct:
         Bilinear(spaceconfig,index1,index2,factor=1.)
@@ -441,21 +474,11 @@ class Bilinear(Xlinear):
                         occ,unocc=[ind1],[ind2]
                 #note that return values is [initial states,final states,electrons between them]
                 index2,index1,count_e=self.spaceconfig.indices_occ(occ=occ,unocc=unocc,getreverse=True,count_e=True)
+                sign=(count_e[1]-count_e[0]+(1 if ind1>ind2 else 0))%2
                 #coping the sign problem
-                sparam=array([param]*len(index1))
-                if ind1<ind2:
-                    #ind2 passes eletrons [0,ind2)
-                    #ind1 passes eletrons [0,ind1)
-                    #the sign is equal to the electrons ind1<=site<ind2, note that ind1 is not occupied here.
-                    sparam[count_e%2==1]*=-1
-                else:
-                    #ind2 passes eletrons [0,ind2)
-                    #ind1 passes eletrons [0,ind1)+(-1 if ind2 has e else +1, change sgn)
-                    #the sign is equal to the electrons ind2<site<ind1
-                    if not self.issc:
-                        sparam[count_e%2==1]*=-1
-                    else:
-                        sparam[count_e%2==0]*=-1  #the first C2+ will take effect on C1+!
+                #sparam=array([param]*len(index1))
+                #sparam[sign==1]*=-1
+                sparam=(1-2*sign)*param
             else:
                 if self.index1<nflv:
                     index2=index1=self.spaceconfig.indices_occ(occ=[self.index1])[0]
@@ -491,6 +514,13 @@ class Bilinear(Xlinear):
         Is a c+c+ type bilinear if true.
         '''
         return (self.index2>=self.spaceconfig.nflv) & (self.index1<self.spaceconfig.nflv)
+
+    @property
+    def HC(self):
+        '''
+        Get the hermitian conjugate.
+        '''
+        return Bilinear(spaceconfig=self.spaceconfig,index1=self.index2,index2=self.index1,factor=conj(self.factor))
 
     def Hk(self,k,param=1.):
         '''
@@ -539,6 +569,13 @@ class BBilinear(Bilinear):
         '''
         return super(BBilinear,self).Hk(k,param*exp(1j*(k*self.bondv).sum(axis=-1)))
 
+    @property
+    def HC(self):
+        '''
+        Get the hermitian conjugate.
+        '''
+        return BBilinear(spaceconfig=self.spaceconfig,index1=self.index2,index2=self.index1,bondv=-self.bondv,factor=conj(self.factor))
+
 class Qlinear(Xlinear):
     '''
     Qlinear class(4 body operator), unlike bilinear, qlinear does not support factor!
@@ -548,10 +585,10 @@ class Qlinear(Xlinear):
 
     *see also <Operator> class.*
     '''
-    def __init__(self,spaceconfig,indices,factor=1.):
+    def __init__(self,spaceconfig,indices,indices_ndag=2,factor=1.):
         if not isinstance(spaceconfig,SuperSpaceConfig):
             raise TypeError('Using wrong type of spaceconfig, <SuperSpaceConfig> is required!')
-        super(Qlinear,self).__init__(spaceconfig=spaceconfig,indices=indices,factor=factor)
+        super(Qlinear,self).__init__(spaceconfig=spaceconfig,indices=indices,indices_ndag=indices_ndag,factor=factor)
 
     def __getattr__(self,name):
         if name=='index1':
@@ -607,3 +644,12 @@ class Qlinear_ninj(Qlinear):
             H=zeros(shape=[self.spaceconfig.hndim]*2,dtype='complex128')
             H[indices,indices]+=data
             return H
+
+    @property
+    def HC(self):
+        '''
+        Get the hermitian conjugate.
+        '''
+        res=copy.copy(self)
+        res.factor=conj(res.factor)
+        return res

@@ -8,7 +8,8 @@ from op import *
 from utils import sx,sy,sz
 from spaceconfig import *
 
-__all__=['op_from_mats','op_on_bond','op_U','op_V','op_c','op_cdag','op_simple_onsite','op_simple_hopping','op_M','site_shift','op_fusion']
+__all__=['op_from_mats','op_from_bmats','op_on_bond','op_U','op_V','op_c',\
+        'op_cdag','op_simple_onsite','op_simple_hopping','op_M','site_shift','op_fusion']
 
 def op_from_mats(label,spaceconfig,mats,bonds=None):
     '''
@@ -19,6 +20,7 @@ def op_from_mats(label,spaceconfig,mats,bonds=None):
         :spaceconfig: <SpaceConfig>, the spaceconfig of this operator.
         :mats: list of 2D array, the hopping matrices.
         :bonds: <Bond>, the bonds.
+
     Return:
         <Operator>, the operator.
     '''
@@ -39,6 +41,41 @@ def op_from_mats(label,spaceconfig,mats,bonds=None):
             for x,y in zip(xs,ys):
                 opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=mat[x,y])
     return opt
+
+def op_from_bmats(label,spaceconfig,mats,bonds):
+    '''
+    get operator from mats defined on bonds.
+
+    Parameters:
+        :label: str, the label of this operator.
+        :spaceconfig: <SpaceConfig>, the spaceconfig of this operator.
+        :mats: list of 2D array, the hopping matrices(without atom dimension).
+        :bonds: <Bond>, the bonds.
+
+    Return:
+        <Operator>, the operator.
+    '''
+    tol=1e-12
+    atom_axis=spaceconfig.get_axis('atom')
+    opt=Operator(label,spaceconfig,factor=1.)
+    config1=array(spaceconfig.config)
+    config1[atom_axis]=1
+    scfg1=SpaceConfig(config1)
+    #add bond bilinears
+    assert(len(mats)==len(bonds))
+    for mat,bond in zip(mats,bonds):
+        nzmask=abs(mat)>tol
+        xs,ys=where(nzmask)
+        for x,y in zip(xs,ys):
+            c1,c2=scfg1.ind2c(x),scfg1.ind2c(y)
+            c1[atom_axis]=bond.atom1
+            c2[atom_axis]=bond.atom2
+            index1=spaceconfig.c2ind(c1)
+            index2=spaceconfig.c2ind(c2)
+            opt.addsubop(BBilinear(spaceconfig,index1=index1,index2=index2,bondv=bond.bondv),weight=mat[x,y])
+    return opt
+
+
 
 def op_on_bond(label,spaceconfig,mats,bonds):
     '''

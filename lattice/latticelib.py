@@ -4,6 +4,7 @@
 
 from numpy import *
 from lattice import Lattice
+from kspace import KSpace
 from bzone import BZone
 from group import C6vGroup,C4vGroup,C3vGroup
 

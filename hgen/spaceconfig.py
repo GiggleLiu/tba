@@ -367,31 +367,28 @@ class SuperSpaceConfig(SpaceConfig):
             :occ: list, the sites with electron. default is no site.
             :unocc: list, unoccupied sites. default is no site.
             :getreverse: bool, get a reversed state(with occ unoccupied and unocc occupied) at the same time.
-            :count_e: bool, count electron numbers between two indices ind1 < site < ind2.
+            :count_e: bool, count electron numbers before used sites.
 
         Return:
-            list, [states meets requirements, final states(if get reverse), electrons between these(valid for 1,2) sites(or before this site)]
+            list, [states meets requirements, final states(if get reverse), electrons before used sites]
         '''
         occ=unique(occ).astype('int32')
         unocc=unique(unocc).astype('int32')
         no=len(occ)
         nn=len(unocc)
         #get remained sites
-        usedsites=sort(concatenate([occ,unocc]))
+        usedsites=concatenate([occ,unocc])
+        order=argsort(usedsites)
+        usedsites=usedsites[order]
+        usedcounter=append(ones(len(occ),dtype='int32'),zeros(len(unocc),dtype='int32'))[order]
         remainsites=delete(arange(self.nsite),usedsites)
         if no+nn!=self.nsite-len(remainsites):
-            raise Exception('Error','Warning, no match for indices %s,%s! @indices_occ'%(occ,unocc))
-            #return array([],dtype='int32')
-        if count_e:
-            assert(no+nn<=2)
-            if no+nn<2:
-                ecounter=array([],dtype='int32')
+            raise ValueError('no match for indices occ-%s,unocc-%s! @indices_occ'%(occ,unocc))
         #get possible combinations
         if self.ne_conserve:
-            #assert(nn==no)
             distri=array(list(combinations(remainsites,self.ne-no)))
-            if count_e and no+nn==2:
-                ecounter=((usedsites[0]<distri) & (distri<usedsites[1])).sum(axis=-1)
+            if count_e:
+                ecounter=[(distri<site).sum(axis=-1) for site in usedsites]
             #turn into indices.
             ids0=(2**distri).sum(axis=-1)
             ids=ids0+(2**occ).sum()
@@ -406,10 +403,8 @@ class SuperSpaceConfig(SpaceConfig):
         else:
             distri=self.id2config(arange(2**(self.nsite-no-nn)))[...,:-no-nn]
             if count_e:
-                if no+nn==2:
-                    ecounter=distri[...,usedsites[0]:usedsites[1]-1].sum(axis=-1)
-                elif no+nn==1:
-                    ecounter=distri[...,:usedsites[0]].sum(axis=-1)
+                #ecounter=distri[...,usedsites[0]:usedsites[1]-1].sum(axis=-1)
+                ecounter=[distri[...,:site-i].sum(axis=-1)+sum(usedcounter[:i]) for i,site in enumerate(usedsites)]
             parser=delete(self._binaryparser,usedsites)
             ids0=(distri*parser).sum(axis=-1)
             ids=ids0+(2**occ).sum()

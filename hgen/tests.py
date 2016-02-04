@@ -2,6 +2,7 @@ from numpy import *
 from numpy.testing import dec,assert_,assert_raises,assert_almost_equal,assert_allclose
 import sys,pdb
 
+from utils import perm_parity
 from op import *
 from oplib import *
 from spaceconfig import *
@@ -10,7 +11,18 @@ from bond import Bond
 
 class TestLinear():
     def __init__(self):
-        self.spaceconfig=SuperSpaceConfig([1,2,4,2])
+        self.spaceconfig=SuperSpaceConfig([1,2,4,1])
+
+    def test_qlinear(self):
+        ndim=self.spaceconfig.ndim
+        for i in xrange(10):
+            indices=random.randint(0,ndim,4)
+            if len(unique(indices))!=4:
+                continue
+            factor=random.random()
+            l1=Qlinear(self.spaceconfig,indices=indices,factor=factor)
+            print l1
+            pdb.set_trace()
 
     def get_random_xlinear(self,n,nbody):
         '''get n random nbody linears'''
@@ -47,7 +59,7 @@ class TestLinear():
 
     def test_site_shift(self):
         shift=2
-        new_spaceconfig=SuperSpaceConfig([1,2,7,1])
+        new_spaceconfig=SuperSpaceConfig([1,2,7,self.spaceconfig.norbit])
         op=self.get_random_operator(n=5,nbody=2)
         nop=site_shift(op,shift,new_spaceconfig)
         op2=site_shift(nop,-shift,self.spaceconfig)
@@ -131,8 +143,24 @@ class Test_config():
             ind2=scfg.config2ind(config)
             assert_(ind2==ind)
 
-#TestLinear().test_xlinear()
-#TestLinear().test_site_shift()
+def test_perm():
+    def perm(N,times):
+        t=0
+        base=arange(N)
+        for i in xrange(times):
+            ri=random.randint(0,N-1)
+            base[ri:ri+2]=base[ri+1],base[ri]
+        return base
+    for k in xrange(10):
+        print 'running sample %s'%k
+        N=random.randint(2,20)
+        times=random.randint(0,50)
+        assert_(perm_parity(perm(N,times))==times%2)
+
+#test_perm()
+TestLinear().test_qlinear()
+TestLinear().test_xlinear()
+TestLinear().test_site_shift()
 TestLinear().test_op_fusion()
 TestLinear().test_oponbond()
-#Test_config().test_indconfig()
+Test_config().test_indconfig()

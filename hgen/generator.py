@@ -90,7 +90,7 @@ class HGeneratorBase(object):
         for op in self.operatordict.keys():
             operator=self.operatordict[op]
             paramname=self.op_param_map[operator.label]
-            param=params.get(paramname,self.params.get(paramname))
+            param=params.get(paramname,self.params[paramname])
             if param==None or abs(param)<1e-8:
                 continue
             h=h+operator(param=param,dense=dense)
@@ -103,7 +103,7 @@ class HGeneratorBase(object):
         for op in self.operatordict.keys():
             operator=self.operatordict[op]
             paramname=self.op_param_map[operator.label]
-            param=params.get(paramname,self.params.get(paramname))
+            param=params.get(paramname,self.params[paramname])
             if param==None or abs(param)<1e-8:
                 continue
             h=h+param*operator
@@ -123,7 +123,7 @@ class KHGenerator(HGeneratorBase):
         use proper gauge if True.(propergauge: keep k-dependant phases exp(ikr) within a sublattice the same.)
     '''
 
-    def __init__(self,spaceconfig,propergauge,**kwargs):
+    def __init__(self,spaceconfig,propergauge=False,**kwargs):
         super(KHGenerator,self).__init__(spaceconfig,**kwargs)
         self.propergauge=propergauge
 
@@ -151,7 +151,7 @@ class KHGenerator(HGeneratorBase):
         for op in self.operatordict.keys():
             operator=self.operatordict[op]
             paramname=self.op_param_map[operator.label]
-            param=params.get(paramname,self.params.get(paramname))
+            param=params.get(paramname,self.params[paramname])
             if param==None or abs(param)<1e-8:
                 #print 'Warning! Small parameter ',param,'! Ignored'
                 continue
@@ -173,7 +173,7 @@ class KHGenerator(HGeneratorBase):
         for op in self.operatordict.keys():
             operator=self.operatordict[op]
             paramname=self.op_param_map[operator.label]
-            param=params.get(paramname,self.params.get(paramname))
+            param=params.get(paramname,self.params[paramname])
             if param==None or abs(param*operator.factor)<1e-8:
                 #print 'Warning! Small parameter ',param,'! Ignored'
                 continue
@@ -193,8 +193,11 @@ class KHGenerator(HGeneratorBase):
         #self.kspace=lattice.getReciprocalLattice()
         self.kspace=lattice.kspace
         if self.propergauge:
+            ndim=self.spaceconfig.ndim
             catoms=self.rlattice.catoms[self.spaceconfig.atomindexer]
-            self.propermesh=array([[diag(exp([-1j*dot(self.kspace.kmesh[i,j],catoms[l]) for l in xrange(self.spaceconfig.ndim)])) for j in xrange(self.kspace.N[1])] for i in xrange(self.kspace.N[0])])
+            kl=self.kspace.kmesh.reshape([-1,self.kspace.vdim])
+            self.propermesh=array([diag(exp([-1j*dot(kl[i],catoms[l])\
+                    for l in xrange(ndim)])) for i in xrange(self.kspace.N[0])]).reshape(list(self.kspace.N)+[ndim,ndim])
 
     def properize(self,inmesh,k=None,reverse=False):
         '''
