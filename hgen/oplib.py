@@ -8,7 +8,7 @@ from op import *
 from utils import sx,sy,sz
 from spaceconfig import *
 
-__all__=['op_from_mats','op_from_bmats','op_on_bond','op_U','op_V','op_c',\
+__all__=['op_from_mats','op_on_bond','op_U','op_V','op_c','op_supercooper',\
         'op_cdag','op_simple_onsite','op_simple_hopping','op_M','site_shift','op_fusion']
 
 def op_from_mats(label,spaceconfig,mats,bonds=None):
@@ -42,49 +42,14 @@ def op_from_mats(label,spaceconfig,mats,bonds=None):
                 opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=mat[x,y])
     return opt
 
-def op_from_bmats(label,spaceconfig,mats,bonds):
-    '''
-    get operator from mats defined on bonds.
-
-    Parameters:
-        :label: str, the label of this operator.
-        :spaceconfig: <SpaceConfig>, the spaceconfig of this operator.
-        :mats: list of 2D array, the hopping matrices(without atom dimension).
-        :bonds: <Bond>, the bonds.
-
-    Return:
-        <Operator>, the operator.
-    '''
-    tol=1e-12
-    atom_axis=spaceconfig.get_axis('atom')
-    opt=Operator(label,spaceconfig,factor=1.)
-    config1=array(spaceconfig.config)
-    config1[atom_axis]=1
-    scfg1=SpaceConfig(config1)
-    #add bond bilinears
-    assert(len(mats)==len(bonds))
-    for mat,bond in zip(mats,bonds):
-        nzmask=abs(mat)>tol
-        xs,ys=where(nzmask)
-        for x,y in zip(xs,ys):
-            c1,c2=scfg1.ind2c(x),scfg1.ind2c(y)
-            c1[atom_axis]=bond.atom1
-            c2[atom_axis]=bond.atom2
-            index1=spaceconfig.c2ind(c1)
-            index2=spaceconfig.c2ind(c2)
-            opt.addsubop(BBilinear(spaceconfig,index1=index1,index2=index2,bondv=bond.bondv),weight=mat[x,y])
-    return opt
-
-
-
 def op_on_bond(label,spaceconfig,mats,bonds):
     '''
     Get operator on specific link.
 
     Parameters:
         :label: str, label of operator.
-        :mats: 3D array, the operator matrix.
         :spaceconfig: <SpaceConfig>, the spaceconfig for the operator.
+        :mats: 3D array, the operator matrix.
         :bonds: <BondCollection>/list of <Bond>, the bonds.
 
     Return:
@@ -249,160 +214,43 @@ def op_M(spaceconfig,label='m',direction='z'):
         smat=kron(sz,smat)
         return op_from_mats(label,spaceconfig,[kron(smat,identity(hndim/4))],bonds=None)
 
-class Operator_D(Operator):
+def op_supercooper(spaceconfig,bonds,mats,label='D'):
     '''
-    Superconduct paring Operator.
+    Get an cooper pairing operator in non-Nambu <SpaceConfig>.
 
-    spaceconfig: 
-        space configuration Instance.
-    factor: 
-        the factor for this magnetic unit. default 1.
-    label:
-        the label. default is 'D'.
+    Parameters:
+        :spaceconfig: <SuperSpaceConfig>/<SpaceConfig>, the configuration of hamiltonian space.
+        :bonds: <BondCollection>/list of <Bond>, the bonds to hold pairing.
+        :label: str, the label, default is 'D'.
+        :mats: list of matrix, the top right part(c+c+) of hamiltonian defined on bonds.
+
+    Return:
+        <Operator>, the operator.
     '''
-    def __init__(self,spaceconfig,factor=1.,label='D'):
-        super(Operator_D,self).__init__(spaceconfig=spaceconfig,factor=factor,label=label)
-        self.cache['meta']=' + h.c.'
+    tol=1e-12
+    opt=Operator(label,spaceconfig,factor=1.)
+    config=list(spaceconfig.config)
+    atomaxis=spaceconfig.get_axis('atom')
+    config[atomaxis]=1
+    spaceconfig1=SuperSpaceConfig(config)
 
-    def __call__(self,param=1.,dense=True):
-        D=super(Operator_D,self).__call__(param=param,dense=dense)
-        H=copy(D)
-        nflv=self.spaceconfig.nflv
-        torder=arange(ndim(D))
-        torder[-2:]=torder[-2:][::-1]
-        if dense:
-            H[...,nflv:,:nflv]=H[...,nflv:,:nflv]+conj(transpose(D[...,:nflv,nflv:],axes=torder))
-        else:
-            H[...,nflv:,:nflv]+=conj(transpose(D[...,:nflv,nflv:],axes=torder))
-        return H
-
-    def Hk(self,k,param=1.,dense=True):
-        '''
-        get Superconducting hamiltonian defined in k-space.
-
-        k:
-            the momentum.
-        param:
-            the parameter.
-        '''
-   
-        D=super(Operator_D,self).Hk(k=k,param=param)
-        H=D
-        nflv=self.spaceconfig.nflv
-        torder=arange(ndim(D))
-        torder[-2:]=torder[-2:][::-1]
-        if dense:
-            H[...,nflv:,:nflv]=H[...,nflv:,:nflv]+conj(transpose(D[...,:nflv,nflv:],axes=torder))
-        else:
-            H[...,nflv:,:nflv]+=conj(transpose(D[...,:nflv,nflv:],axes=torder))
-        return H
-
-    def D(self,k=None,param=1.):
-        '''
-        Get the superconducting part of hamiltonian.
-
-        k:
-            the momentum.
-        '''
-        nflv=self.spaceconfig.nflv
-        if k==None:
-            D=super(Operator_D,self).__call__(param=param)[:nflv,nflv:]
-        else:
-            D=super(Operator_D,self).Hk(k,param=param)[...,:nflv,nflv:]
-        return D
-
-    def readbonds(self,bonds,bondfunc=lambda b:1.,spinconfig='singlet'):
-        '''Read a set of bonds to form a set of sub-operators.
-
-        bonds:
-            the Bond instances to read.
-        bondfunc:
-            a function defined on bond to determine the weight of sub-operators.
-        spinconfig:
-            configurations of spin, default is 'upup+dndn'(s0), refer utils.spindict for detail.
-        '''
-        spins=spin_dict[spinconfig]
-        spaceconfig=self.spaceconfig #spaceconfig is used as the config to find indexer
-        if (spaceconfig.smallnambu and spins!=spin_dict['singlet']):
-            print 'Error, please check spinconfig or the dimension of you nambu spacec. @readbonds'
-            pdb.set_trace()
-        if isinstance(spaceconfig,SuperSpaceConfig):
-            spaceconfig=deepcopy(self.spaceconfig)
-            spaceconfig.config[0]=2
-        if not hasattr(bondfunc,'__call__'):
-            bondfunc=bfunc_dict[bondfunc]
-
-        for b in bonds:
-            if spaceconfig.nspin==1:
-                spins=[(0,0,1.)]
-            for s1,s2,factor in spins:
-                index1=spaceconfig.subspace(atomindex=b.atom1,spinindex=s1,nambuindex=0)
-                index2=spaceconfig.subspace(atomindex=b.atom2,spinindex=s2,nambuindex=1)
-                bl=BBilinear(spaceconfig=self.spaceconfig,index1=index1,index2=index2,bondv=b.bondv)
-                self.addsubop(bl,weight=bondfunc(b)*factor)
-
-    def gk(self,k):
-        '''
-        Get the Geometric factor of pairing - g(k).
-
-        k: 
-            the momentum
-        '''
-        if self.spaceconfig.smallnambu:
-            return self.Hk(k)[:self.spaceconfig.nflv,self.spaceconfig.nflv:]
-        sgmy=self.spaceconfig.sigma(2,nambu=False)
-        gk=dot(self.Hk(k),-1j*sgmy)
-        return gk[:self.spaceconfig.nflv,self.spaceconfig.nflv:]
-
-    def setbondweight(self,atom1,atom2,weight,mutual=True):
-        '''
-        Set the bond between atom1 and atom2.
-
-        atom1/atom2:
-            the start/end atom of the bond.
-        weight:
-            the new weight.
-        mutual:
-            set the conterpart at the same time.
-        '''
-        for dcell in self.suboperators:
-            b=dcell.bond
-            if b.atom1==atom1 and b.atom2==atom2:
-                dcell.weight=weight
-            if mutual and  (b.atom1==atom2 and b.atom2==atom1):
-                dcell.weight=weight
-
-    def breakbond(self,atom1,atom2,mutual=True):
-        '''
-        Break the bond between specified atoms.
-
-        atom1/atom2: 
-            the start/end atom of the bond.
-        mutual:
-            set the conterpart at the same time.
-        '''
-        self.setbondweight(atom1,atom2,0.,mutual=mutual)
-
-
-def op_D(spaceconfig,bonds,bondfunc=lambda b:1.,spinconfig='singlet',label='D'):
-    '''
-    Get an cooper pairing operator.
-
-    spinconfig: 
-        the configuration of spin-pairing, default is singlet.
-    bonds:
-        the bonds to hold pairing.
-    bondfunc:
-        the weight of D as a function of bond. default is uniform.
-    spinconfig:
-        the pairing information, default is 'singlet' pairing. refer utils.spindict for detail.
-    label: 
-        the label, default is 'D'.
-    '''
-    op=Operator_D(label=label,spaceconfig=spaceconfig)
-    op.readbonds(bonds,bondfunc=bondfunc,spinconfig=spinconfig)
-    return op
-
+    #add bilinears
+    assert(len(mats)==len(bonds))
+    for mat,bond in zip(mats,bonds):
+        nzmask=abs(mat)>tol
+        xs,ys=where(nzmask)
+        for x,y in zip(xs,ys):
+            c1,c2=spaceconfig1.ind2c(x),spaceconfig1.ind2c(y)
+            c1[atomaxis]=bond.atom1
+            c2[atomaxis]=bond.atom2
+            index1,index2=spaceconfig.c2ind(c1),spaceconfig.c2ind(c2)
+            if bond.atom1==bond.atom2:
+                opt.addsubop(Bilinear(spaceconfig,index1=index1,index2=index2,indices_ndag=2),weight=mat[x,y])
+                opt.addsubop(Bilinear(spaceconfig,index1=index2,index2=index1,indices_ndag=0),weight=conj(mat[x,y]))
+            else:
+                opt.addsubop(BBilinear(spaceconfig,index1=index1,index2=index2,bondv=bond.bondv,indices_ndag=2),weight=mat[x,y])
+                opt.addsubop(BBilinear(spaceconfig,index1=index2,index2=index1,bondv=-bond.bondv,indices_ndag=0),weight=conj(mat[x,y]))
+    return opt
 
 def op_simple_hopping(label,spaceconfig,bonds):
     '''
@@ -417,6 +265,7 @@ def op_simple_hopping(label,spaceconfig,bonds):
     '''
     mats=[]
     nflv=spaceconfig.nflv
+    sup=spaceconfig.nnambu>1
     atomindexer=[where(spaceconfig.subspace(atomindex=i,nambuindex=0))[0] for i in xrange(spaceconfig.natom)]
     opt=Operator(label,spaceconfig,factor=1.)
     for bond in bonds:
@@ -424,6 +273,8 @@ def op_simple_hopping(label,spaceconfig,bonds):
         ind2s=atomindexer[bond.atom2]
         for x,y in zip(ind1s,ind2s):
             opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=1.)
+            if sup:
+                opt.addsubop(BBilinear(spaceconfig,index1=x+nflv,index2=y+nflv,bondv=bond.bondv),weight=-1.)
     return opt
 
 def site_shift(op,n,new_spaceconfig):

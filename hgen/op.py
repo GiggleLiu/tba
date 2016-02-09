@@ -425,8 +425,8 @@ class Bilinear(Xlinear):
         :index1/index2: Arrays indicating sub-block of hamiltonian H[index1,index2](readonly).
         *see also <Operator> class*
     '''
-    def __init__(self,spaceconfig,index1,index2,factor=1.):
-        super(Bilinear,self).__init__(spaceconfig=spaceconfig,indices=[index1,index2],factor=factor)
+    def __init__(self,spaceconfig,index1,index2,factor=1.,indices_ndag=1):
+        super(Bilinear,self).__init__(spaceconfig=spaceconfig,indices=[index1,index2],factor=factor,indices_ndag=indices_ndag)
 
     def __str__(self):
         txt=('%.4f'%self.factor).rstrip('0')+'*'
@@ -438,14 +438,13 @@ class Bilinear(Xlinear):
             elif self.spaceconfig.smallnambu:
                 c[i]+=('dn' if inds[i][0] else 'up')
             if self.spaceconfig.natom>=2:
-                #c[i]+=chr(65+inds[i][2])
                 c[i]+=str(inds[i][2])
             if self.spaceconfig.norbit>=2:
                 c[i]+='o'+str(inds[i][3])
             if self.spaceconfig.nnambu==2:
                 c[i]+='+' if (i==inds[i][0]) else ''
             else:
-                c[i]+='+' if (i==0 or self.issc) else ''
+                c[i]+='+' if (i<self.indices_ndag) else ''
         txt+=''.join(c)+self.meta_info
         return txt
 
@@ -453,38 +452,17 @@ class Bilinear(Xlinear):
         '''
         Refer Operator.__call__ for useage.
         '''
-        param=param*self.factor
         if isinstance(self.spaceconfig,SuperSpaceConfig):
             nflv=self.spaceconfig.nflv
             ind1,ind2=self.index1,self.index2
             if ind2!=ind1:
-                if ind1<nflv:
-                    if ind2<nflv:
-                        occ,unocc=[ind2],[ind1]
-                    else:
-                        ind2-=nflv
-                        occ,unocc=[],[ind2,ind1]
-                else:
-                    if ind2<nflv:
-                        ind1-=nflv
-                        occ,unocc=[ind2,ind1],[]
-                    else:
-                        ind1-=nflv
-                        ind2-=nflv
-                        occ,unocc=[ind1],[ind2]
-                #note that return values is [initial states,final states,electrons between them]
-                index2,index1,count_e=self.spaceconfig.indices_occ(occ=occ,unocc=unocc,getreverse=True,count_e=True)
-                sign=(count_e[1]-count_e[0]+(1 if ind1>ind2 else 0))%2
-                #coping the sign problem
-                #sparam=array([param]*len(index1))
-                #sparam[sign==1]*=-1
-                sparam=(1-2*sign)*param
+                return super(Bilinear,self).__call__(param,dense)
             else:
                 if self.index1<nflv:
                     index2=index1=self.spaceconfig.indices_occ(occ=[self.index1])[0]
                 else:
                     index2=index1=self.spaceconfig.indices_occ(unocc=[self.index1])[0]
-                sparam=array([param]*len(index1))
+                sparam=(param*self.factor)*ones(len(index1))
             if not dense:
                 h=coo_matrix((sparam,(index1,index2)),shape=[self.spaceconfig.hndim]*2,dtype='complex128')
                 h=h.tocsr()
@@ -495,7 +473,7 @@ class Bilinear(Xlinear):
         else:
             #for hamiltonian in sencond quantized representation.
             H=zeros([self.spaceconfig.hndim]*2,dtype='complex128')
-            H[self.index1,self.index2]=param
+            H[self.index1,self.index2]=self.factor*param
             return H
 
     @property

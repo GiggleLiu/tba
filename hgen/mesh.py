@@ -73,7 +73,7 @@ class Emesh(object):
                 ax.scatter(kx,ky,self.data[...,i],s=5,edgecolor='none',c=colors[i])
         legend(arange(nband))
 
-    def show_dos(self,wlist,geta=3e-2,inverse_axis=False,weights=None):
+    def show_dos(self,wlist,geta=3e-2,inverse_axis=False,weights=1.):
         '''
         Get a List instance of dos.
 
@@ -87,8 +87,7 @@ class Emesh(object):
             weights of energies.
         '''
         nw=len(wlist)
-        dos=List(shape=[nw],dtype='float64')
-        dos[...]=(weights/(wlist[:,newaxis]+1j*geta-reshape(self.data,[1,-1]))).imag.sum(axis=-1)
+        dos=(weights/(wlist[:,newaxis]+1j*geta-reshape(self.data,[1,-1]))).imag.sum(axis=-1)
         dos*=-1./pi/prod(self.data.shape)
         if inverse_axis:
             wlist,dos=dos,wlist

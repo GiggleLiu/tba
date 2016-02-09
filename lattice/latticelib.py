@@ -135,7 +135,7 @@ class Chain(Lattice):
     ----------------
     Chain(N,a=(1.),catoms=[(0.,0.)])
     '''
-    def __init__(self,N,a=(1.),catoms=[(0.)]):
+    def __init__(self,N,a=array([1.]),catoms=[(0.)]):
         '''
         N:
             Number of cells, integer.
@@ -150,7 +150,7 @@ class Chain(Lattice):
     def kspace(self):
         '''The <KSpace> instance correspond to a chain.'''
         a=self.a[0]
-        b=2*pi*a/a.dot(a)
+        b=2*pi*a/dot(a,a)
         ks=KSpace(N=self.N,b=b)
         ks.special_points['K']=array([-b/2.,b/2.])
         return ks

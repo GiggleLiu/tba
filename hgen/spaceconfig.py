@@ -447,19 +447,33 @@ class SpinSpaceConfig(SpaceConfig):
         else:
             raise NotImplementedError()
 
-    def subspace(self,spinindex=None,atomindex=None):
+    def config2ind(self,config):
         '''
-        Get the subspace mask.
+        Convert config to id
 
-        nambuindex/spinindex/atomindex/orbitindex:
-            nambu/spin/atomindex/orbitindex index, default is all indices.
+        Parameters:
+            :config: 1D array/2D array, an array of 0 and 1 that indicates the config of electrons.
+
+        Return:
+            integer/1D array, indices.
         '''
-        if self.smallnambu:
-            spinindex=0
-        mask=ones(self.ndim,dtype='bool')
-        if spinindex!=None:
-            mask=mask & (self.spinindexer==spinindex)
-        if atomindex!=None:
-            mask=mask & (self.atomindexer==atomindex)
-        return mask
+        nspin=self.nspin
+        return sum([config[...,i]*self.natom**i for i in xrange(self.natom)],axis=0)
 
+    def ind2config(self,id):
+        '''
+        Convert id to config.
+
+        Parameters:
+            :id: a number indicate the whole space index.
+
+        Return:
+            1D array/2D array, the configuration of electrons.
+        '''
+        nspin=self.nspin
+        config=[]
+        for i in xrange(self.natom):
+            ci=id%nspin
+            id=(id-ci)/nspin
+            config.append(ci[...,newaxis])
+        return concatenate(config[::-1],axis=-1)
