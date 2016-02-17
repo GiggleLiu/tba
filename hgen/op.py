@@ -291,16 +291,19 @@ class Xlinear(OperatorBase):
 
     def __str__(self):
         txt=('%.4f'%self.factor).rstrip('0')+'*'
+        atom_axis=self.spaceconfig.get_axis('atom')
+        spin_axis=self.spaceconfig.get_axis('spin')
+        orbit_axis=self.spaceconfig.get_axis('orbit')
         inds=[self.spaceconfig.ind2c(ind) for ind in self.indices]
         c=['C_']*self.nbody
         for i in xrange(self.nbody):
             if self.spaceconfig.nspin==2:
-                c[i]+=('dn' if inds[i][1] else 'up')
+                c[i]+=('dn' if inds[i][spin_axis] else 'up')
             if self.spaceconfig.natom>=2:
                 #c[i]+=chr(65+inds[i][2])
-                c[i]+=str(inds[i][2])
+                c[i]+=str(inds[i][atom_axis])
             if self.spaceconfig.norbit>=2:
-                c[i]+='o'+str(inds[i][3])
+                c[i]+='o'+str(inds[i][orbit_axis])
             if i<self.indices_ndag:
                 c[i]+='+'
         txt+=''.join(c)+self.meta_info
@@ -369,15 +372,18 @@ class Operator_C(Xlinear):
 
     def __str__(self):
         txt=('%.4f'%self.factor).rstrip('0')+'*'
+        atom_axis=self.spaceconfig.get_axis('atom')
+        spin_axis=self.spaceconfig.get_axis('spin')
+        orbit_axis=self.spaceconfig.get_axis('orbit')
         inds=self.spaceconfig.ind2c(self.index)
         c='C_'
         if self.spaceconfig.nspin==2:
-            c+=('dn' if inds[1] else 'up')
+            c+=('dn' if inds[spin_axis] else 'up')
         if self.spaceconfig.natom>=2:
            # c+=chr(65+inds[2])
-            c+=str(inds[2])
+            c+=str(inds[atom_axis])
         if self.spaceconfig.norbit>=2:
-            c+='o'+str(inds[3])
+            c+='o'+str(inds[orbit_axis])
         if self.dag:
             c+='+'
         txt+=c+self.meta_info
@@ -432,15 +438,18 @@ class Bilinear(Xlinear):
         txt=('%.4f'%self.factor).rstrip('0')+'*'
         inds=[self.spaceconfig.ind2c(self.index1),self.spaceconfig.ind2c(self.index2)]
         c=['C_','C_']
+        atom_axis=self.spaceconfig.get_axis('atom')
+        spin_axis=self.spaceconfig.get_axis('spin')
+        orbit_axis=self.spaceconfig.get_axis('orbit')
         for i in xrange(2):
             if self.spaceconfig.nspin==2:
-                c[i]+=('dn' if inds[i][1] else 'up')
+                c[i]+=('dn' if inds[i][spin_axis] else 'up')
             elif self.spaceconfig.smallnambu:
                 c[i]+=('dn' if inds[i][0] else 'up')
             if self.spaceconfig.natom>=2:
-                c[i]+=str(inds[i][2])
+                c[i]+=str(inds[i][atom_axis])
             if self.spaceconfig.norbit>=2:
-                c[i]+='o'+str(inds[i][3])
+                c[i]+='o'+str(inds[i][orbit_axis])
             if self.spaceconfig.nnambu==2:
                 c[i]+='+' if (i==inds[i][0]) else ''
             else:

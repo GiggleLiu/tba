@@ -9,9 +9,10 @@ from spaceconfig import *
 sys.path.insert(0,'../lattice')
 from bond import Bond
 
+SpaceConfig.SPACE_TOKENS=['nambu','atom','spin','orbit']
 class TestLinear():
     def __init__(self):
-        self.spaceconfig=SuperSpaceConfig([1,2,4,1])
+        self.spaceconfig=SuperSpaceConfig([1,4,2,1])
 
     def test_qlinear(self):
         ndim=self.spaceconfig.ndim
@@ -22,7 +23,6 @@ class TestLinear():
             factor=random.random()
             l1=Qlinear(self.spaceconfig,indices=indices,factor=factor)
             print l1
-            pdb.set_trace()
 
     def get_random_xlinear(self,n,nbody):
         '''get n random nbody linears'''
@@ -59,7 +59,7 @@ class TestLinear():
 
     def test_site_shift(self):
         shift=2
-        new_spaceconfig=SuperSpaceConfig([1,2,7,self.spaceconfig.norbit])
+        new_spaceconfig=SuperSpaceConfig([1,7,2,self.spaceconfig.norbit])
         op=self.get_random_operator(n=5,nbody=2)
         nop=site_shift(op,shift,new_spaceconfig)
         op2=site_shift(nop,-shift,self.spaceconfig)
@@ -89,6 +89,7 @@ class TestLinear():
     def test_oponbond(self):
         natom=self.spaceconfig.natom
         dim1=self.spaceconfig.ndim/natom
+        atom_axis=self.spaceconfig.get_axis('atom')
         #test on-site
         mats=[0.5*identity(dim1)]*natom
         bonds=[Bond(zeros(2),i,i) for i in xrange(natom)]
@@ -96,7 +97,7 @@ class TestLinear():
         print 'Get operator,',op
         for i in xrange(natom):
             for j in xrange(dim1):
-                assert_(all(self.spaceconfig.ind2c(op.suboperators[dim1*i+j].indices)[:,-2]==ones(2)*i))
+                assert_(all(self.spaceconfig.ind2c(op.suboperators[dim1*i+j].indices)[:,atom_axis]==ones(2)*i))
                 assert_(all(op.suboperators[dim1*i+j].factor==0.5))
         #test for nearest hopping
         mats=[0.5*identity(dim1)]*(natom-1)
@@ -105,7 +106,7 @@ class TestLinear():
         print 'Get operator,',op
         for i in xrange(natom-1):
             for j in xrange(dim1):
-                assert_(all(self.spaceconfig.ind2c(op.suboperators[dim1*i+j].indices)[:,-2]==array([i,i+1])))
+                assert_(all(self.spaceconfig.ind2c(op.suboperators[dim1*i+j].indices)[:,atom_axis]==array([i,i+1])))
                 assert_(all(op.suboperators[dim1*i+j].factor==0.5))
 
     def test_xlinear(self):

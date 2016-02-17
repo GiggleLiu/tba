@@ -11,6 +11,24 @@ import pdb,time
 
 __all__=['SpaceConfig','SuperSpaceConfig','SpinSpaceConfig']
 
+standard_order=['nambu','spin','atom','orbit']
+
+def parse_order(config,order):
+    '''
+    Parse config to standard order.
+
+    Parameters:
+        :config: len-4 list, the configuration.
+        :order: len-4 list, the target order string.
+
+    Return:
+        len-4 list, the configuration in target order.
+    '''
+    cfg=[]
+    for s in order:
+        cfg.append(config[standard_order.index(s)])
+    return cfg
+
 class SpaceConfig(object):
     SPACE_TOKENS=['nambu','spin','atom','orbit']
     '''
@@ -46,18 +64,12 @@ class SpaceConfig(object):
             return self.nnambu==2 and self.nspin==1
         elif name=='superconduct':
             return self.nnambu==2
-        elif name=='nambuindexer':
-            nambuindexer=kron(arange(self.nnambu),ones(self.nflv))
-            return nambuindexer
-        elif name=='atomindexer':
-            return kron(ones(self.nnambu*self.nspin,dtype='int32'),kron(arange(self.natom),ones(self.norbit,dtype='int32')))
-        elif name=='spinindexer':
-            spinindexer=kron(ones(self.nnambu,dtype='int32'),kron(arange(self.nspin),ones(self.natom*self.norbit,dtype='int32')))
-            return spinindexer
-        elif name=='orbitindexer':
-            norb=self.norbit
-            orbitindexer=kron(ones(self.ndim/norb,dtype='int32'),arange(norb))
-            return orbitindexer
+        elif name[-7:]=='indexer':
+            s=name[:-7]
+            s_axis=self.get_axis(s)
+            nl=prod(self.config[:s_axis])
+            nr=prod(self.config[s_axis+1:])
+            return kron(ones(nl,dtype='int32'),kron(arange(self.config[s_axis]),ones(nr,dtype='int32')))
         elif name[0] is 'n':
             substr=name[1:]
             if substr=='flv':
@@ -121,7 +133,7 @@ class SpaceConfig(object):
         if self.smallnambu:
             spinindex=0
         if indices is None:
-            indices=[nambuindex,spinindex,atomindex,orbitindex]
+            indices=parse_order([nambuindex,spinindex,atomindex,orbitindex],order=self.SPACE_TOKENS)
         return c2ind(indices,N=self.config[-shape(indices)[-1]:])
 
     def subspace2(self,nambus=None,spins=None,atoms=None,orbits=None):
@@ -142,7 +154,7 @@ class SpaceConfig(object):
         if self.smallnambu:
             spins=[0]
         subspace=zeros(self.config,dtype='bool')
-        subspace[ix_(nambus,spins,atoms,orbits)]=True
+        subspace[ix_(parse_order(nambus,spins,atoms,orbits,self.SPACE_TOKENS))]=True
         subspace=subspace.ravel()
         return subspace
 
@@ -176,10 +188,12 @@ class SpaceConfig(object):
         onlye:
             return a spin operator define in eletron space only if True.
         '''
-        nl=1
+        spin_axis=self.get_axis('spin')
         if not onlye:
-            nl*=self.config[0]
-        nr=self.config[-1]*self.config[-2]
+            nl=prod(self.config[1:spin_axis])
+        else:
+            nl=prod(self.config[:spin_axis])
+        nr=prod(self.config[spin_axis:])
         return kron(kron(identity(nl),s[index]),identity(nr))
 
     def tau(self,index):

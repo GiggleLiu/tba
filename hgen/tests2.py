@@ -13,6 +13,7 @@ from tba.lattice import Structure
 from blockmatrix.blocklib import eigbsh,eigbh,get_blockmarker,tobdmatrix,get_bmgen
 from blockmatrix.blockmarker import BlockMarkerGenerator,LabeledBlockMarker
 
+SpaceConfig.SPACE_TOKENS=['nambu','atom','spin','orbit']
 class FermiHTest(object):
     '''
     Test fermionic hamiltonian generator.
@@ -55,9 +56,9 @@ class Hex6(object):
 
         #occupation representation will use <SuperSpaceConfig>, otherwise <SpaceConfig>.
         if self.occ:
-            spaceconfig=SuperSpaceConfig([1,2,6,1])
+            spaceconfig=SuperSpaceConfig([1,6,2,1])
         else:
-            spaceconfig=SpaceConfig([1,2,6,1],kspace=False)
+            spaceconfig=SpaceConfig([1,6,2,1],kspace=False)
             if abs(U)>0: warnings.warn('U is ignored in non-occupation representation.')
         hgen=RHGenerator(spaceconfig=spaceconfig)
 
