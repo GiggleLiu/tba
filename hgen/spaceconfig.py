@@ -193,7 +193,7 @@ class SpaceConfig(object):
             nl=prod(self.config[1:spin_axis])
         else:
             nl=prod(self.config[:spin_axis])
-        nr=prod(self.config[spin_axis:])
+        nr=prod(self.config[spin_axis+1:])
         return kron(kron(identity(nl),s[index]),identity(nr))
 
     def tau(self,index):
