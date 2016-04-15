@@ -1,13 +1,17 @@
 #!/usr/bin/python
 from numpy import *
-from mpi4py import MPI
 from matplotlib.pyplot import *
 #MPI setting
 try:
+    from mpi4py import MPI
     COMM=MPI.COMM_WORLD
     SIZE=COMM.Get_size()
     RANK=COMM.Get_rank()
+    if SIZE!=1:
+        import mkl
+        mkl.set_num_threads(1)
 except:
+    print 'WARNING, NOT USING MULTITHREADING.'
     COMM=None
     SIZE=1
     RANK=0
