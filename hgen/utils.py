@@ -9,7 +9,8 @@ from matplotlib.pyplot import *
 import scipy.sparse as sps
 import pdb,time
 
-__all__=['sx','sy','sz','s','fermi','H2G','s2vec','vec2s','ind2c','c2ind','perm_parity','EU2C','C2H','bcast_dot']
+__all__=['sx','sy','sz','s','s1x','s1y','s1z','s1','fermi','H2G','s2vec','vec2s',
+        'ind2c','c2ind','perm_parity','EU2C','C2H','bcast_dot']
 
 ############################ DEFINITIONS ##############################
 # pauli spin
@@ -17,6 +18,12 @@ sx = array([[0, 1],[ 1, 0]])
 sy = array([[0, -1j],[1j, 0]])
 sz = array([[1, 0],[0, -1]])
 s=[identity(2),sx,sy,sz]
+
+# spin 1 matrices.
+s1x=array([[0,1,0],[1,0,1],[0,1,0]])/sqrt(2)
+s1y=array([[0,-1j,0],[1j,0,-1j],[0,1j,0]])/sqrt(2)
+s1z=array([[1,0,0],[0,0,0],[0,0,-1]])
+s1=[identity(3),s1x,s1y,s1z]
 ############################ FUNCTIONS ##############################
 
 def bcast_dot(A,B):

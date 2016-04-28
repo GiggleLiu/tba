@@ -4,7 +4,7 @@ SpaceConfiguration for hamiltonian.
 from numpy import *
 from numpy.linalg import *
 from scipy.misc import factorial
-from utils import ind2c,c2ind,s
+from utils import ind2c,c2ind,s,s1
 from itertools import combinations
 from matplotlib.pyplot import *
 import pdb,time
@@ -194,7 +194,7 @@ class SpaceConfig(object):
         else:
             nl=prod(self.config[:spin_axis])
         nr=prod(self.config[spin_axis+1:])
-        return kron(kron(identity(nl),s[index]),identity(nr))
+        return kron(kron(identity(nl),s[index]/2.),identity(nr))
 
     def tau(self,index):
         '''
@@ -457,9 +457,15 @@ class SpinSpaceConfig(SpaceConfig):
         Pauli operators.
         '''
         if self.nspin==2:
-            return s[index]
+            si=s[index]/2.
+        elif self.nspin==3:
+            si=s1[index]
         else:
             raise NotImplementedError()
+        natom=self.natom
+        if natom!=1:
+            si=kron(si,identity(natom))
+        return si
 
     def config2ind(self,config):
         '''

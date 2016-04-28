@@ -1,5 +1,6 @@
 from numpy import *
 from numpy.testing import dec,assert_,assert_raises,assert_almost_equal,assert_allclose
+from scipy.linalg import eigh
 import sys,pdb
 
 from utils import perm_parity
@@ -123,7 +124,7 @@ class TestLinear():
         else:
             assert_allclose(data1+data2-0.3*data1+0.5*(data2/3.+data1*2.),(bl1+bl2-0.3*bl1+0.5*(bl2/3.+bl1*2.))(dense=True))
 
-class Test_config():
+class Test_superconfig():
     def __init__(self):
         self.sscfg=SuperSpaceConfig([2,5,2])
         self.sscfg_ne=SuperSpaceConfig([2,5,2],ne=10)
@@ -158,10 +159,33 @@ def test_perm():
         times=random.randint(0,50)
         assert_(perm_parity(perm(N,times))==times%2)
 
+class Test_spinconfig():
+    def __init__(self):
+        self.scfg=SpinSpaceConfig([2,1])
+        self.scfg1=SpinSpaceConfig([3,1])
+        self.scfgs=[self.scfg,self.scfg1]
+
+    def test_sigma(self):
+        #test for sigma x,y,z
+        for i in [1,2,3]:
+            for scfg in self.scfgs:
+                si=scfg.sigma(i)
+                #test hermicity
+                assert_allclose(si.T.conj(),si)
+                #test eigenvalues.
+                evals=eigh(si)[0]
+                print evals
+                tvals=arange(scfg.nspin)-(scfg.nspin-1)/2.
+                assert_allclose(evals,tvals,atol=1e-10)
+
+    def test_all(self):
+        self.test_sigma()
+
 #test_perm()
+Test_spinconfig().test_all()
 TestLinear().test_qlinear()
 TestLinear().test_xlinear()
 TestLinear().test_site_shift()
 TestLinear().test_op_fusion()
 TestLinear().test_oponbond()
-Test_config().test_indconfig()
+Test_superconfig().test_indconfig()

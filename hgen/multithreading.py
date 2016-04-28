@@ -1,9 +1,9 @@
 #!/usr/bin/python
 from numpy import *
-from mpi4py import MPI
 from matplotlib.pyplot import *
 #MPI setting
 try:
+    from mpi4py import MPI
     COMM=MPI.COMM_WORLD
     SIZE=COMM.Get_size()
     RANK=COMM.Get_rank()
