@@ -7,7 +7,11 @@ try:
     COMM=MPI.COMM_WORLD
     SIZE=COMM.Get_size()
     RANK=COMM.Get_rank()
+    if SIZE!=1:
+        import mkl
+        mkl.set_num_threads(1)
 except:
+    print 'WARNING, NOT USING MULTITHREADING.'
     COMM=None
     SIZE=1
     RANK=0
