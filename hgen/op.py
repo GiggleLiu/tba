@@ -147,7 +147,7 @@ class Operator(OperatorBase):
             else:
                 H=csr_matrix((hndim,hndim),dtype='complex128')
             for bl in self.suboperators:
-                H=H+bl(param=param*self.factor,dense=dense).tocsr()
+                H=H+bl(param=param*self.factor,dense=dense)
         return H
 
     def __str__(self):
@@ -518,7 +518,7 @@ class Bilinear(Xlinear):
         '''
         Get the hermitian conjugate.
         '''
-        return Bilinear(spaceconfig=self.spaceconfig,index1=self.index2,index2=self.index1,factor=conj(self.factor))
+        return Bilinear(spaceconfig=self.spaceconfig,index1=self.index2,index2=self.index1,factor=conj(self.factor),indices_ndag=2-self.indices_ndag)
 
     def Hk(self,k,param=1.):
         '''
@@ -551,8 +551,8 @@ class BBilinear(Bilinear):
 
     *see also <Bilinear> class*
     '''
-    def __init__(self,spaceconfig,index1,index2,bondv,factor=1.):
-        super(BBilinear,self).__init__(spaceconfig=spaceconfig,index1=index1,index2=index2,factor=factor)
+    def __init__(self,spaceconfig,index1,index2,bondv,factor=1.,indices_ndag=1):
+        super(BBilinear,self).__init__(spaceconfig=spaceconfig,index1=index1,index2=index2,factor=factor,indices_ndag=indices_ndag)
         self.bondv=array(bondv)
         self.meta_info='' if norm(self.bondv)<1e-5 else ' <%s>'%(','.join(['%.2f'%b for b in self.bondv]))
 
@@ -572,7 +572,7 @@ class BBilinear(Bilinear):
         '''
         Get the hermitian conjugate.
         '''
-        return BBilinear(spaceconfig=self.spaceconfig,index1=self.index2,index2=self.index1,bondv=-self.bondv,factor=conj(self.factor))
+        return BBilinear(spaceconfig=self.spaceconfig,index1=self.index2,index2=self.index1,bondv=-self.bondv,factor=conj(self.factor),indices_ndag=2-self.indices_ndag)
 
 class Qlinear(Xlinear):
     '''
