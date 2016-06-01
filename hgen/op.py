@@ -134,12 +134,20 @@ class Operator(OperatorBase):
             bonus multiplication factor of this operator.
         '''
         hndim=self.spaceconfig.hndim
-        if dense:
-            H=zeros((hndim,hndim),dtype='complex128')
+        if not isinstance(self.spaceconfig,SuperSpaceConfig):
+            #compiling indices
+            indices=array([bl.indices for bl in self.suboperators])
+            datas=self.factor*param*array([bl.factor for bl in self.suboperators])
+            H=coo_matrix((datas,(indices[:,0],indices[:,1])),shape=(hndim,hndim))
+            if dense: H=H.toarray()
+            return H
         else:
-            H=csr_matrix((hndim,hndim),dtype='complex128')
-        for bl in self.suboperators:
-            H=H+bl(param=param*self.factor,dense=dense)
+            if dense:
+                H=zeros((hndim,hndim),dtype='complex128')
+            else:
+                H=csr_matrix((hndim,hndim),dtype='complex128')
+            for bl in self.suboperators:
+                H=H+bl(param=param*self.factor,dense=dense)
         return H
 
     def __str__(self):
@@ -451,7 +459,7 @@ class Bilinear(Xlinear):
             if self.spaceconfig.norbit>=2:
                 c[i]+='o'+str(inds[i][orbit_axis])
             if self.spaceconfig.nnambu==2:
-                c[i]+='+' if (i==inds[i][0]) else ''
+                c[i]+='+' if (i==inds[i][self.spaceconfig.get_axis('nambu')]) else ''
             else:
                 c[i]+='+' if (i<self.indices_ndag) else ''
         txt+=''.join(c)+self.meta_info
@@ -481,8 +489,11 @@ class Bilinear(Xlinear):
             return h
         else:
             #for hamiltonian in sencond quantized representation.
-            H=zeros([self.spaceconfig.hndim]*2,dtype='complex128')
-            H[self.index1,self.index2]=self.factor*param
+            if dense:
+                H=zeros([self.spaceconfig.hndim]*2,dtype='complex128')
+                H[self.index1,self.index2]=self.factor*param
+            else:
+                H=coo_matrix(([self.factor*param],([self.index1],[self.index2])),shape=[self.spaceconfig.hndim]*2,dtype='complex128')
             return H
 
     @property
@@ -507,7 +518,7 @@ class Bilinear(Xlinear):
         '''
         Get the hermitian conjugate.
         '''
-        return Bilinear(spaceconfig=self.spaceconfig,index1=self.index2,index2=self.index1,factor=conj(self.factor))
+        return Bilinear(spaceconfig=self.spaceconfig,index1=self.index2,index2=self.index1,factor=conj(self.factor),indices_ndag=2-self.indices_ndag)
 
     def Hk(self,k,param=1.):
         '''
@@ -540,8 +551,8 @@ class BBilinear(Bilinear):
 
     *see also <Bilinear> class*
     '''
-    def __init__(self,spaceconfig,index1,index2,bondv,factor=1.):
-        super(BBilinear,self).__init__(spaceconfig=spaceconfig,index1=index1,index2=index2,factor=factor)
+    def __init__(self,spaceconfig,index1,index2,bondv,factor=1.,indices_ndag=1):
+        super(BBilinear,self).__init__(spaceconfig=spaceconfig,index1=index1,index2=index2,factor=factor,indices_ndag=indices_ndag)
         self.bondv=array(bondv)
         self.meta_info='' if norm(self.bondv)<1e-5 else ' <%s>'%(','.join(['%.2f'%b for b in self.bondv]))
 
@@ -561,7 +572,7 @@ class BBilinear(Bilinear):
         '''
         Get the hermitian conjugate.
         '''
-        return BBilinear(spaceconfig=self.spaceconfig,index1=self.index2,index2=self.index1,bondv=-self.bondv,factor=conj(self.factor))
+        return BBilinear(spaceconfig=self.spaceconfig,index1=self.index2,index2=self.index1,bondv=-self.bondv,factor=conj(self.factor),indices_ndag=2-self.indices_ndag)
 
 class Qlinear(Xlinear):
     '''

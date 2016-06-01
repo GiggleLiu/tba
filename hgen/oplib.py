@@ -2,6 +2,8 @@
 Operator Construction methods.
 '''
 from numpy import *
+from numpy.linalg import norm
+from scipy import sparse as sps
 import pdb,copy,time
 
 from op import *
@@ -29,17 +31,31 @@ def op_from_mats(label,spaceconfig,mats,bonds=None):
     #add bilinears
     if bonds is None:
         for mat in mats:
-            nzmask=abs(mat)>tol
-            xs,ys=where(nzmask)
-            for x,y in zip(xs,ys):
-                opt.addsubop(Bilinear(spaceconfig,index1=x,index2=y),weight=mat[x,y])
+            if sps.issparse(mat):
+                mat=mat.tocsr()
+                mat.eliminate_zeros()
+                mat=mat.tocoo()
+                for x,y,datai in zip(mat.row,mat.col,mat.data):
+                    opt.addsubop(Bilinear(spaceconfig,index1=x,index2=y),weight=datai)
+            else:
+                nzmask=abs(mat)>tol
+                xs,ys=where(nzmask)
+                for x,y in zip(xs,ys):
+                    opt.addsubop(Bilinear(spaceconfig,index1=x,index2=y),weight=mat[x,y])
     else:
         assert(len(mats)==len(bonds))
         for mat,bond in zip(mats,bonds):
-            nzmask=abs(mat)>tol
-            xs,ys=where(nzmask)
-            for x,y in zip(xs,ys):
-                opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=mat[x,y])
+            if sps.issparse(mat):
+                mat=mat.tocsr()
+                mat.eliminate_zeros()
+                mat=mat.tocoo()
+                for x,y,datai in zip(mat.row,mat.col,mat.data):
+                    opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=datai)
+            else:
+                nzmask=abs(mat)>tol
+                xs,ys=where(nzmask)
+                for x,y in zip(xs,ys):
+                    opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=mat[x,y])
     return opt
 
 def op_on_bond(label,spaceconfig,mats,bonds):
@@ -79,7 +95,7 @@ def op_on_bond(label,spaceconfig,mats,bonds):
             c1[atomaxis]=bond.atom1
             c2[atomaxis]=bond.atom2
             index1,index2=spaceconfig.c2ind(c1),spaceconfig.c2ind(c2)
-            if bond.atom1==bond.atom2:
+            if norm(bond.bondv)==0:
                 opt.addsubop(Bilinear(spaceconfig,index1=index1,index2=index2),weight=mat[x,y])
             else:
                 opt.addsubop(BBilinear(spaceconfig,index1=index1,index2=index2,bondv=bond.bondv),weight=mat[x,y])
@@ -171,14 +187,16 @@ def op_simple_onsite(label,spaceconfig,index=None):
             dg=zeros(hndim)
             dg[index]=1
     else:
-        nflv=hndim/2
+        dg=zeros(hndim)
         if index is None:
-            dg=append(ones(nflv),-ones(nflv))
+            electron_mask=spaceconfig.subspace(nambuindex=0)
+            dg[electron_mask]=1
+            dg[~electron_mask]=-1
         else:
-            dg=zeros(hndim)
-            dg[index]=1 if index<nflv else -1
-    return op_from_mats(label=label,spaceconfig=spaceconfig,mats=[diag(dg)],bonds=None)
-
+            nflv=prod(spaceconfig.config[spaceconfig.get_axis('nambu')+1:])
+            dg[index]=1# if index<nflv else -1
+            dg[index+nflv]=-1
+    return op_from_mats(label=label,spaceconfig=spaceconfig,mats=[sps.diags(dg,0)],bonds=None)
 
 def op_M(spaceconfig,label='m',direction='z'):
     '''
@@ -203,6 +221,7 @@ def op_M(spaceconfig,label='m',direction='z'):
     else:
         raise ValueError('Direction should be `x`,`y` or `z`! get %s.'%direction)
 
+    print 'Warning, needs careful check if used in non normal-ordered hamiltonian!'
     if spaceconfig.nnambu==1:
         return op_from_mats(label,spaceconfig,[kron(smat,identity(hndim/2))],bonds=None)
     elif spaceconfig.smallnambu:
@@ -264,17 +283,18 @@ def op_simple_hopping(label,spaceconfig,bonds):
         the bonds to hold this hopping term.
     '''
     mats=[]
-    nflv=spaceconfig.nflv
     sup=spaceconfig.nnambu>1
-    atomindexer=[where(spaceconfig.subspace(atomindex=i,nambuindex=0))[0] for i in xrange(spaceconfig.natom)]
+    atomindexer=spaceconfig.atomindexer
     opt=Operator(label,spaceconfig,factor=1.)
+    hmask=spaceconfig.nambuindexer==1
     for bond in bonds:
-        ind1s=atomindexer[bond.atom1]
-        ind2s=atomindexer[bond.atom2]
-        for x,y in zip(ind1s,ind2s):
-            opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=1.)
-            if sup:
-                opt.addsubop(BBilinear(spaceconfig,index1=x+nflv,index2=y+nflv,bondv=bond.bondv),weight=-1.)
+        ind1s=where(atomindexer==bond.atom1)[0]
+        ind2s=where(atomindexer==bond.atom2)[0]
+        for x,y,is_hole in zip(ind1s,ind2s,hmask[ind1s]):
+            if sup and is_hole:
+                opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=-1.)
+            else:
+                opt.addsubop(BBilinear(spaceconfig,index1=x,index2=y,bondv=bond.bondv),weight=1.)
     return opt
 
 def site_shift(op,n,new_spaceconfig):

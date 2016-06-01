@@ -39,6 +39,7 @@ class FermiHTest(object):
         Emin=eigsh(h_occ,which='SA',k=1)[0]
         E_excit=eigvalsh(h_exact)
         Emin_exact=sum(E_excit[E_excit<0])
+        print E_excit
         print 'The Ground State Energy for hexagon(t = %s, t2 = %s) is %s, tolerence %s.'%(modelocc.t,modelocc.t2,Emin,Emin-Emin_exact)
         assert_almost_equal(Emin,Emin_exact)
 

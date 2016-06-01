@@ -45,13 +45,15 @@ class HGeneratorBase(object):
         '''
         Register/modify a operator.
 
-        operator:
-            the operator.
-        param: 
-            the param label correspond to this operator. default is nullparam 1.
+        Parameters:
+            :operator: <Operator>, the operator.
+            :param: str, the param label correspond to this operator. default is nullparam 1.
         '''
-        self.op_param_map[operator.label]=param
-        self.operatordict[operator.label]=operator
+        oplabel=operator.label
+        if self.op_param_map.has_key(oplabel):
+            raise ValueError('Label of operator %s has been occupied! choose another one!'%oplabel)
+        self.op_param_map[oplabel]=param
+        self.operatordict[oplabel]=operator
 
     def register_params(self,paramdict):
         '''
