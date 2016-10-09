@@ -8,7 +8,7 @@ from kspace import KSpace
 from bzone import BZone
 from group import C6vGroup,C4vGroup,C3vGroup
 
-__all__=['Honeycomb_Lattice','Square_Lattice','Triangular_Lattice','Chain','construct_lattice','resize_lattice']
+__all__=['Honeycomb_Lattice','Square_Lattice','Triangular_Lattice','Chain','construct_lattice','resize_lattice','plot_lattice']
 
 class Honeycomb_Lattice(Lattice):
     '''
@@ -209,3 +209,10 @@ def resize_lattice(lattice,N):
         1D - array, the size of new lattice.
     '''
     return construct_lattice(a=lattice.a,N=N,catoms=lattice.catoms,args={'form':getattr(lattice,'form',None)})
+
+def plot_lattice(lattice,bondcolor='k',sitecolor='b',offset=(0,0)):
+    '''
+    Plot the lattice.
+    '''
+    lattice.show_sites(plane=(0,1),color=sitecolor,offset=offset)
+    lattice.show_bonds(nth=(1,),plane=(0,1),color=bondcolor,offset=offset)

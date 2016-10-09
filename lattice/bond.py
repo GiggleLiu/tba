@@ -131,15 +131,10 @@ def show_bonds(bonds,start=None,lw=1,**kwargs):
     '''
     Display a collection of bonds.
 
-    bonds:
-        A <BondCollection> instance.
-    start:
-        the location of starting atoms.
-    lw,**kwargs:
-        line width of bonds and key word arguments for 
-
-    *return*:
-        None
+    Parameters:
+        :bonds: list/<BondCollection> instance.
+        :start: ndarray, the location of starting atoms.
+        :lw,**kwargs: line width of bonds and key word arguments for 
     '''
     vdim=bonds.vdim
     bvs=[]

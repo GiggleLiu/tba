@@ -73,23 +73,22 @@ class Structure(object):
         '''Whether bonds are initialized.'''
         return self.__nnnbonds__ is not None
 
-    def query(self,pos,k,**kwargs):
+    def query_neighbors(self,i,k,**kwargs):
         '''
         Query the K-nearest sites near specific site.
 
-        pos:
-            The position of target site.
-        k:
-            The number of neighbors.
-        **kwargs:
-            Key word arguments for cKDTree.
+        Parameters:
+            :i: int, the index of target site.
+            :k: int, the number of neighbors.
+            *kwargs*: Key word arguments for cKDTree.
 
-        *return*:
+        Return:
             int32 array of length k, the indices of neighbor sites.
         '''
         if self.__kdt__ is None:
             warnings.warn('Please initialize bonds before querying sites.')
             return None
+        pos=self.sites[i]
         k=min(len(self.__kdt__.data),k)
         distance,ind=self.__kdt__.query(pos,k=k,**kwargs)
         site=self.__kdt_map__[ind]
@@ -107,9 +106,10 @@ class Structure(object):
         *return*:
             The site index.
         '''
-        distance,res=self.query(pos,k=1)
+        distance,ind=self.__kdt__.query(pos,k=1,tol=1e-5)
+        site=self.__kdt_map__[ind]
         if distance<tol:
-            return res
+            return site
 
     def usegroup(self,g):
         '''
@@ -264,18 +264,15 @@ class Structure(object):
         else:
             return bonds[n]
 
-    def show_bonds(self,nth=(1,),plane=(0,1),color='r'):
+    def show_bonds(self,nth=(1,),plane=(0,1),color='r',offset=(0,0)):
         '''
         Plot the structure.
 
-        plane:
-            project to the specific plane if it is a 3D structre.
-            Default is (0,1) - 'x-y' plane.
-        nth:
-            the n-th nearest bonds are plotted. It should be a tuple.
-            Default is (1,) - the nearest neightbor.
-        c:
-            color, default is 'r' -red.
+        Parameters:
+            :plane: tuple, project to the specific plane if it is a 3D structre. Default is (0,1) - 'x-y' plane.
+            :nth: int, the n-th nearest bonds are plotted. It should be a tuple. Default is (1,) - the nearest neightbor.
+            :color: str, color, default is 'r' -red.
+            :offset: len-2 tuple, offset in x,y direction.
         '''
         if ndim(nth)==0:
             nth=[nth]
@@ -285,14 +282,14 @@ class Structure(object):
             return
         for nb in nth:
             bs=nnnbonds[nb]
-            show_bonds(bs,start=self.sites[bs.atom1s])
+            show_bonds(bs,start=self.sites[bs.atom1s]+offset)
 
-    def show_sites(self,plane=(0,1),color='r'):
+    def show_sites(self,plane=(0,1),color='r',offset=(0,0)):
         '''
         Show the sites in this structure.
 
-        color:
-            The color, string.
+        Parameters:
+            :color: str, the color.
         '''
         if self.vdim>1:
             p1,p2=plane
@@ -300,5 +297,5 @@ class Structure(object):
         else:
             x=self.sites[:,0]
             y=zeros(self.nsite)
-        scatter(x,y,s=50,c=color,edgecolor='none',vmin=-0.5,vmax=1.5)
+        scatter(x+offset[0],y+offset[1],s=50,c=color,edgecolor='none',vmin=-0.5,vmax=1.5)
 
