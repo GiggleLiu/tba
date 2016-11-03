@@ -10,8 +10,7 @@ from spaceconfig import SpaceConfig,SuperSpaceConfig,SpinSpaceConfig
 from generator import RHGenerator
 from oplib import op_simple_hopping,op_U,op_simple_onsite
 from tba.lattice import Structure
-from blockmatrix.blocklib import eigbsh,eigbh,get_blockmarker,tobdmatrix,get_bmgen
-from blockmatrix.blockmarker import BlockMarkerGenerator,LabeledBlockMarker
+from blockmatrix.blocklib import eigbsh,eigbh,get_blockmarker,tobdmatrix
 
 SpaceConfig.SPACE_TOKENS=['nambu','atom','spin','orbit']
 class FermiHTest(object):
@@ -35,7 +34,7 @@ class FermiHTest(object):
         modelocc=self.model_occ
         rlattice=modelocc.hgen.rlattice
         h_occ=modelocc.hgen.H()
-        h_exact=self.model_exact.hgen.H()
+        h_exact=self.model_exact.hgen.H(dense=True)
         Emin=eigsh(h_occ,which='SA',k=1)[0]
         E_excit=eigvalsh(h_exact)
         Emin_exact=sum(E_excit[E_excit<0])

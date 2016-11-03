@@ -9,6 +9,7 @@ from matplotlib.pyplot import *
 import os,time,re,pdb
 
 from multithreading import mpido
+from lib import H2G
 
 __all__=['HGeneratorBase','KHGenerator','RHGenerator']
 

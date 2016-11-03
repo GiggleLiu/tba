@@ -6,7 +6,6 @@ from numpy import *
 from utils import toreciprocal,ind2c,c2ind
 import itertools,warnings
 from bond import Bond,show_bonds,BondCollection
-from group import TranslationGroup
 from numpy.linalg import norm
 from scipy.spatial import cKDTree
 from matplotlib.pyplot import *
