@@ -204,8 +204,7 @@ class FSHandler(object):
         if peripheral is None:
             x,y=centerpoint
             peripheral=array([[x-pi,y-pi],[x+pi,y-pi],[x+pi,y+pi],[x-pi,y+pi],[x-pi,y-pi]])
-        kp=path_k(peripheral,nseg)
-        kl=kp.data
+        kl=path_k(peripheral,nseg)
         for ii in xrange(len(kl)):
             k=kl[ii]
             ki=self.findzero(centerpoint,k,eshift)

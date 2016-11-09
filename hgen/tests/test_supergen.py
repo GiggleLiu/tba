@@ -4,7 +4,8 @@ from matplotlib.pyplot import *
 from numpy.linalg import eigh,eigvalsh
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
-import time,pdb
+import time,pdb,sys
+sys.path.insert(0,'../')
 
 from spaceconfig import SpaceConfig,SuperSpaceConfig,SpinSpaceConfig
 from generator import RHGenerator
@@ -13,6 +14,7 @@ from tba.lattice import Structure
 from blockmatrix.blocklib import eigbsh,eigbh,get_blockmarker,tobdmatrix
 
 SpaceConfig.SPACE_TOKENS=['nambu','atom','spin','orbit']
+
 class FermiHTest(object):
     '''
     Test fermionic hamiltonian generator.

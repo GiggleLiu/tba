@@ -57,3 +57,17 @@ def scatter_e(kmesh,Emesh,**kwargs):
     for i in xrange(nband):
         ax.scatter(kx,ky,Emesh[...,i],s=5,edgecolor='none',c=colors[i],**kwargs)
 
+def plotconfig(spaceconfig,config,offset=zeros(2)):
+    '''
+    Display a config of electron.
+
+    Parameters:
+        :config: 1D array/2D array, len-nsite array with items 0,1(state without/with electron).
+    '''
+    cfg=config.reshape(spaceconfig.config)
+    cfg=swapaxes(cfg,-1,-2).reshape([-1,spaceconfig.natom])
+    x,y=meshgrid(spaceconfig.get_indexer('atom'),arange(spaceconfig.nsite/spaceconfig.natom))
+    colors=cm.get_cmap('rainbow')(float64(cfg))
+    scatter(x+offset[0],y+offset[1],s=20,c=colors.reshape([-1,4]))
+
+

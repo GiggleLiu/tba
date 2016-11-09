@@ -284,9 +284,9 @@ def op_simple_hopping(label,spaceconfig,bonds):
     '''
     mats=[]
     sup=spaceconfig.nnambu>1
-    atomindexer=spaceconfig.atomindexer
+    atomindexer=spaceconfig.get_indexer('atom')
     opt=Operator(label,spaceconfig,factor=1.)
-    hmask=spaceconfig.nambuindexer==1
+    hmask=spaceconfig.subspace(nambuindex=1)
     for bond in bonds:
         ind1s=where(atomindexer==bond.atom1)[0]
         ind2s=where(atomindexer==bond.atom2)[0]

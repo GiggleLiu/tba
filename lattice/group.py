@@ -3,28 +3,108 @@
 Group Operations for Lattice/KSpace and Hamiltonian.
 '''
 from numpy import *
-from utils import meshgrid_v,rotate
+from utils import meshgrid_v
 from numpy.linalg import norm
-import pdb
+import re,pdb
 
-__all__=['Group','TranslationGroup','PointGroup','CnvGroup','CnGroup','C3vGroup','C4vGroup','C6vGroup']
+__all__=['Group','TranslationGroup','PointGroup','vector_rotate','vector_image','pauli_rotate_matrix']
+
+pgroup_types=[r'^C(\d)$',r'^C(\d)v$']
+xyz_axes=dict(x=[1.,0,0],y=[0,1.,0],z=[0,0,1.])
+
+def vector_rotate(v,theta):
+    '''
+    Rotate vector(s) anti-clock wise for theta.
+
+    Parameters:
+        :v: ndarray, len-2 vectors.
+        :theta: float, the angle.
+
+    Return:
+        ndarray, rotated vectors.
+    '''
+    vector=asarray(v)
+    assert(vector.shape[-1]==2)
+    rotatematrix=array([[cos(theta),-sin(theta)],[sin(theta),cos(theta)]],dtype='float64')
+    return (rotatematrix*vector[...,newaxis,:]).sum(axis=-1)
+
+
+def vector_image(v,axis):
+    '''
+    Reflect vector(s) with respect to specific plane.
+
+    Parameters:
+        :v: ndarray, vectors.
+        :axis: float/str, the axis perpendicular to the image plane.
+
+    Return:
+        ndarray, reflected vectors.
+    '''
+    if isinstance(axis,str): axis=xyz_axes[axis]
+    axis,v=asarray(axis),asarray(v)
+    axis=axis/norm(axis)
+    return v-2*v.dot(axis[:,newaxis])*axis
+
+def pauli_rotate_matrix(theta,axis):
+    '''
+    Pauli rotation matrix exp(-j*theta/2*sigma(n))
+
+    Parameters:
+        :theta: float, the angle.
+        :axis: 1d array,str, the pivot axis.
+    '''
+    if isinstance(axis,str): axis=xyz_axes(axis)
+    sigman=vec2s(axis,unit=True)
+    return identity(2)*cos(theta/2)-1j*sin(theta/2)*sigman
+
+def spin_rotate(spaceconfig,A,theta,axis):
+    '''
+    Rotate spin for theta along a specific axis.
+
+    Parameters:
+        :spaceconfig: <SpaceConfig>, the configuration of hamiltonian space.
+        :A: matrix,
+        :theta: float, the angle to rotate.
+        :axis: 1d array/str, the pivoting axis.
+
+    Return:
+        matrix, the rotated spin.
+    '''
+    dim2=spaceconfig.norbit*spaceconfig.natom
+    U0=kron(pauli_rotate_matrix(theta=theta,axis=axis),identity(dim2))
+    if spaceconfig.nnambu==1:
+        U=U0
+    else:
+        nflv=2*dim2
+        U=zeros([nflv*2,nflv*2],dtype='complex128')
+        U[:nflv,:nflv]=U0
+        U[nflv:,nflv:]=conj(U0)
+    return dot(conj(transpose(U)),dot(A,U))
+
+def spin_image(spaceconfig,A,axis):
+    '''
+    Image spin about plane n(indicated by the perpendicular vector).
+
+    Parameters:
+        :spaceconfig: <SpaceConfig>, the configuration of hamiltonian space.
+        :A: matrix,
+        :axis: 1d array/str, the imagine axis.
+
+    Return:
+        matrix, the rotated spin.
+    '''
+    return spin_rotate(spaceconfig,A=A,axis=axis,theta=pi)
 
 class Group(object):
     '''
     The Base class for groups.
 
-    Construct
-    --------------------
-    Group(tp)
+    Attributes:
+        :tp: str, the type of group.
 
-    Attributes
-    ----------------
-    tp:
-        the type of group.
-
-        * 'point': the point group.
-        * 'tranlation': the translation group.
-        * 'tr': time reversal group.
+            * 'point': the point group.
+            * 'tranlation': the translation group.
+            * 'tr': time reversal group.
     '''
     def __init__(self,tp):
         self.tp=tp
@@ -33,37 +113,28 @@ class TranslationGroup(Group):
     '''
     Translation group(with type `translation`).
 
-    Construct
-    ----------------------
-    TranslationGroup(Rs,per,k)
-
-    Attributes
-    ----------------------
-    Rs:
-        A list of R, the periodic vectors in real space.
-    per:
-        A list of boolean indicating periodic(True) or not(False) in specific direction.
-        Or, equivalently, an array of integer indicating the index of periodic axes.
-    k:
-        The order of this translation group, the maximum translation operation times,
-        the larger, the slower, the more reliable result will be got.
+    Attributes:
+        :Rs: 2d array, A list of R, the periodic vectors in real space.
+        :per: 1d array, A list of boolean indicating periodic(True) or not(False) in specific direction.
+            Or, equivalently, an array of integer indicating the index of periodic axes.
+        :k: int, the order of this translation group, the maximum translation operation times,
+            the larger, the slower, the more reliable result will be got.
     '''
     def __init__(self,Rs,per,k=1):
         super(TranslationGroup,self).__init__('translation')
-        self.Rs=array(Rs)
+        self.Rs=asarray(Rs)
         self.per=zeros(len(Rs),dtype='bool')
-        self.per[array(per)]=True
-        self.per=tuple(per)
+        self.per[asarray(per)]=True
         self.k=k
 
         #initialize the translation matrix.
-        self.tmatrix=meshgrid_v([arange(-k,k+1)]*sum(self.per),vecs=self.Rs[array(self.per)])
+        self.tmatrix=meshgrid_v([arange(-k,k+1)]*sum(self.per),vecs=self.Rs[self.per])
 
     def __setattr__(self,name,value):
         super(TranslationGroup,self).__setattr__(name,value)
         if name=='per' or name=='k' or name=='Rs':
             if hasattr(self,'tmatrix'):
-                self.tmatrix=meshgrid_v([arange(-self.k,self.k+1)]*sum(self.per),vecs=self.Rs[array(self.per)])
+                self.tmatrix=meshgrid_v([arange(-self.k,self.k+1)]*sum(self.per),vecs=self.Rs[self.per])
 
     @property
     def nper(self):
@@ -118,7 +189,7 @@ class TranslationGroup(Group):
             The maximum times of translation group imposed on r2.
         '''
         rjs=self.get_equiv(rj)
-        dr=ri-rjs
+        dr=rjs-ri
         absdr=norm(dr,axis=-1)
         ind=argmin(absdr)
         return absdr[ind],dr[ind]
@@ -127,72 +198,29 @@ class PointGroup(Group):
     '''
     Point group class.
 
-    Construct
-    -----------------
-    Group(name)
+    Attributes:
+        :name: str, name of group, like C6v, C3v ...
+        :irzone: 2d array/None, 2 vector defining the irreducible zone.
+        :ng: int, number of group operations.
 
-    Attributes
-    ----------------
-    name:
-        Name of group, like C6v, C3v ...
-    irzone:
-        The 2 vector defining the irreducible zone.
+    Private Attributes:
+        :_type: int, the index of type in pgroup_types list.
+
+            * 0: Cn
+            * 1: Cnv
     '''
     def __init__(self,name):
-        super(PointGroup,self).__init__('pointgroup')
+        super(PointGroup,self).__init__('point')
         self.name=name
         self.irzone=None
-
-    def spinrotate(self,spaceconfig,Hmat,theta,n=array([0,0,1.])):
-        '''
-        Rotate spin for theta along a specific axis.
-
-        spaceconfig: 
-            The configuration of hamiltonian space.
-        Hmat:
-            the Hamiltonian to perform this action.
-        theta:
-            the angle to rotate.
-        n: 
-            the axis(default is the z axis).
-        '''
-        dim2=spaceconfig.norbit*spaceconfig.natom
-        U0=kron(Srot(theta=theta,n=n),identity(dim2))
-        if spaceconfig.nnambu==1:
-            U=U0
-        else:
-            nflv=2*dim2
-            U=zeros([nflv*2,nflv*2],dtype='complex128')
-            U[:nflv,:nflv]=U0
-            U[nflv:,nflv:]=conj(U0)
-        return dot(conj(transpose(U)),dot(Hmat,U))
-
-    def spinimage(self,spaceconfig,Hmat,n=array([1.,0,0])):
-        '''
-        Image spin about plane n(indicated by the perpendicular vector).
-
-        spaceconfig: 
-            The configuration of hamiltonian space.
-        Hmat:
-            the Hamiltonian to perform this action.
-        n: 
-            the vector(default is the x axis).
-        '''
-        return self.spinrotate(spaceconfig,Hmat=Hmat,n=n,theta=pi)
-
-    def actonK(self,k,ig,*args,**kwargs):
-        '''
-        Act this group on specific k-point.
-
-        k:
-            The k-vector.
-        ig:
-            The index of group members.
-        
-        *return*:
-            The k-vector after group action.
-        '''
-        raise Exception('Not Implemented!')
+        for i,tpstr in enumerate(pgroup_types):
+            mch=re.match(tpstr,self.name)
+            if mch is not None:
+                self._type=i
+                self.ng=int(mch.group(1))*(1 if i==0 else 2)
+                break
+            if i==len(pgroup_types)-1:
+                raise ValueError('No Such Group!')
 
     def is_reducible(self,k):
         '''
@@ -215,128 +243,54 @@ class PointGroup(Group):
             Convert k to reducible zone. k should be in brillouin zone!
         '''
         for ig in xrange(self.ng):
-            ki=self.actonK(k,ig)
+            ki=self.acton_vec(k,ig)
             if not self.is_reducible(ki):
                 return ki
         print 'warning: irreducible k=',k,'. k not in bzone?'
         return k
 
-
-class CnvGroup(PointGroup):
-    '''
-    class of Cnv Group.
-
-    Construct
-    -----------------
-    GnvGroup(n)
-
-    Attributes
-    -------------------
-    n:
-        The n of Cnv.
-    '''
-    def __init__(self,n):
-        super(CnvGroup,self).__init__(name='C'+str(n)+'v')
-        self.n=n
-        self.ng=2*n
-
-    def actonK(self,k,ig):
+    def acton_vec(self,k,ig=None):
         '''
-        Get the k' vector after group action on k specified by ig
+        Get the vector after group action specified by ig
 
-        k:
-            the input k-vector.
-        ig:
-            specify the group element to act on k.
+        Parameters:
+            :k: ndarray, the input k-vectors.
+            :ig: int, specify the group element to act on k.
         '''
+        if ig is None: ig=range(self.ng)
+        if ndim(ig)==1:
+            return array([self.acton_vec(k,iig) for iig in ig])
+        if ig>=self.ng: raise ValueError()
         #get the transformation to k: G^-1(ig)*k
-        k1=rotate(k,ig*pi*2/self.n)
-        if ig>=self.ng/2:
+        n=self.ng if self._type==0 else self.ng/2
+        k1=vector_rotate(k,ig*pi*2/n)
+        if ig>=n:
             #image about the y axis
-            k1=sv(k1,n=array([1.0,0.0]))
+            k1=vector_image(k1,axis=array([1.0,0.0]))
+        k1=vector_rotate(k,ig*pi*2/n)
         return k1
 
-    def actonH(self,spaceconfig,Hmat,ig):
+    def acton_H(self,spaceconfig,Hmat,ig):
         '''
         Act the group operation on H(spin action and orbit action).
         Please, pay attention to the order of operation here.
         rotate the wave function for angle theta, and then image about yz plane is equivalent to:
         image the Hamiltonian first, then rotate the spin operator for an angle -theta!
 
-        spaceconfig: 
-            The configuration of hamiltonian space.
-        Hmat:
-            the Hamiltonian to perform this action.
-        ig:
-            specify the group element.
+        Parameters:
+            :spaceconfig: <SpaceConfig>, the configuration of hamiltonian space.
+            :Hmat: matrix, the Hamiltonian to perform this action.
+            :ig: int, specify the group element.
+
+        Return:
+            matrix,
         '''
+        if ig is None:
+            return array([self.acton_H(spaceconfig,Hmat,ig) for ig in xrange(self.ng)])
+        if ig>=self.ng: raise ValueError()
+        n=self.ng if self._type==0 else self.ng/2
         if ig >= self.ng/2:
-            Hmat=self.spinimage(model,Hmat) #keep n default x axis.
-        theta=ig*pi*2/self.n
-        Hmat=self.spinrotate(model,Hmat,theta)
+            Hmat=spin_image(spaceconfig,Hmat,axis='x')
+        theta=ig*pi*2/n
+        Hmat=spin_rotate(spaceconfig,Hmat,theta,axis='x')
         return Hmat
-
-class CnGroup(Group):
-    '''
-    Class of Cn group.
-
-    Construct
-    -----------------
-    GnGroup(n)
-
-    Attributes
-    -------------------
-    n:
-        the n of Cn.
-    '''
-    def __init__(self,n):
-        super(CnGroup,self).__init__(name='C'+str(n))
-        self.n=n
-        self.ng=n
-
-    def actonK(self,k,ig):
-        '''
-        Get the k' vector after group action on k specified by ig
-
-        k:
-            the input k-vector.
-        ig:
-            specify the group element to act on k.
-        '''
-        #get the transformation to k: G^-1(ig)*k
-        k1=rotate(k,ig*pi*2/self.n)
-        return k1
-
-    def actonH(self,model,Hmat,ig):
-        '''
-        Act the group operation on H(spin action and orbit action).
-        Please, pay attention to the order of operation here.
-        rotate the wave function for angle theta, and then image about yz plane is equivalent to:
-        image the Hamiltonian first, then rotate the spin operator for an angle -theta!
-
-        k:
-            the input k-vector.
-        ig:
-            specify the group element to act on k.
-        '''
-        theta=ig*pi/3
-        Hmat=self.spinrotate(model,Hmat,theta) #keep n default z axis.
-        return Hmat
-
-def C6vGroup():
-    '''
-    get a C6v group.
-    '''
-    return CnvGroup(6)
-
-def C4vGroup():
-    '''
-    get a C4v group.
-    '''
-    return CnvGroup(4)
-
-def C3vGroup():
-    '''
-    get a C3v group.
-    '''
-    return CnvGroup(3)

@@ -1,35 +1,38 @@
-#!/usr/bin/python
 '''
-<Structure> related classes and operations.
+<Structure> class.
 '''
+
 from numpy import *
 from utils import toreciprocal,ind2c,c2ind
 import itertools,warnings
-from bond import Bond,show_bonds,BondCollection
 from numpy.linalg import norm
 from scipy.spatial import cKDTree
-from matplotlib.pyplot import *
 import time,pdb,pickle,warnings
 
-__all__=['Structure']
+from bond import Bond,BondCollection
 
-FOLDER='data'
+__all__=['NotInitializedError','Structure']
+
+class NotInitializedError(Exception):
+    pass
+
 class Structure(object):
     '''
     Structure Base class. A collection of sites.
 
-    Construct
-    ---------------------
-    Structure(sites)
+    Attributes:
+        :sites: 2d array, positions of sites.
+        :groups: dict, the translation group and point groups imposed on this lattice.
 
-    Attributes
-    ----------------------
-    sites:
-        Positions of sites.
-    groups:
-        The translation group and point groups imposed on this lattice.
-    __kdt__/__kdt_map__:
-        The kd-tree for this structure, and the mapping for kdt index and site index.
+    Read Only Attributes:
+        :nsite: int, the number of sites.
+        :vdim: int, dimension vector space.
+        :b1s, b2s, b3s: <BondCollection>, first,second,third nearest neighbors.
+        :bonds_initialized: bool, True if the bonds are initialized.
+
+    Private Attributes:
+        :_kdt/_kdt_map: KDTree/dict, the kd-tree for this structure, and the mapping for kdt index and site index.
+        :_nnnbonds: list, the bonds grouped by neighboring ranks.
     '''
     def __init__(self,sites):
         '''
@@ -38,9 +41,9 @@ class Structure(object):
         '''
         self.sites=array(sites)
         self.groups={}
-        self.__nnnbonds__=None
-        self.__kdt__=None
-        self.__kdt_map__=None
+        self._nnnbonds=None
+        self._kdt=None
+        self._kdt_map=None
 
     @property
     def nsite(self):
@@ -70,11 +73,11 @@ class Structure(object):
     @property
     def bonds_initialized(self):
         '''Whether bonds are initialized.'''
-        return self.__nnnbonds__ is not None
+        return self._nnnbonds is not None
 
-    def query_neighbors(self,i,k,**kwargs):
+    def get_neighbors(self,i,k,**kwargs):
         '''
-        Query the K-nearest sites near specific site.
+        Get the k-nearest sites near specific site.
 
         Parameters:
             :i: int, the index of target site.
@@ -82,54 +85,48 @@ class Structure(object):
             *kwargs*: Key word arguments for cKDTree.
 
         Return:
-            int32 array of length k, the indices of neighbor sites.
+            (site, distance), the indices of neighbor sites, int32 array of length k, 
         '''
-        if self.__kdt__ is None:
-            warnings.warn('Please initialize bonds before querying sites.')
-            return None
+        if not self.bonds_initialized: raise NotInitializedError()
         pos=self.sites[i]
-        k=min(len(self.__kdt__.data),k)
-        distance,ind=self.__kdt__.query(pos,k=k,**kwargs)
-        site=self.__kdt_map__[ind]
-        return distance,site
+        k=min(len(self._kdt.data),k+1)
+        distance,ind=self._kdt.query(pos,k=k,**kwargs)
+        sites=self._kdt_map[ind[1:]]
+        return sites,distance[1:]
 
     def findsite(self,pos,tol=1e-5):
         '''
         Find the site at specific position.
 
-        pos:
-            The position of the site.
-        tol:
-            The position tolerence.
+        Parameters:
+            :pos: 1d array, the position of the site.
+            :tol: float, the position tolerence.
         
-        *return*:
-            The site index.
+        Return:
+            int/None, the site index, or None if not found.
         '''
-        distance,ind=self.__kdt__.query(pos,k=1,tol=1e-5)
-        site=self.__kdt_map__[ind]
+        if not self.bonds_initialized: raise NotInitializedError()
+        distance,ind=self._kdt.query(pos,k=1)
+        site=self._kdt_map[ind]
         if distance<tol:
             return site
 
     def usegroup(self,g):
         '''
-        Apply a group on this lattice.
-
-        g: 
-            A <Group> instance.
+        Apply group `g` on this lattice.
         '''
         self.groups[g.tp]=g
 
-    def measure(self,i,j,k=2):
+    def get_distance(self,i,j,k=2):
         '''
         Measure the 'true' distance between sites at ri and rj. 
         Here, the main problem is the periodic bondary condition.
 
-        i/j: 
-            index of start/end atom.
-        k:
-            The maximum times of translation group imposed on r2.
+        Parameters:
+            :i/j: int, index of start/end atom.
+            :k: int, the maximum times of translation group imposed on r2.
 
-        *return*:
+        Return:
             (|r|,r), absolute distance and vector distance.
         '''
         tg=self.groups.get('translation')
@@ -137,26 +134,22 @@ class Structure(object):
         if tg is not None:
             return tg.measure(ri,rj)
         else:
-            r=ri-rj
+            r=rj-ri
             return norm(r,axis=-1),r
 
-    def initbonds(self,nmax=3,K=None,tol=1e-5,leafsize=30):
+    def initbonds(self,K=20,tol=1e-5,leafsize=30,nth_neighbor=Inf):
         '''
         Initialize the distance(bond) mesh, and classify it by onsite,1st,2ed,3rd ... nearest neighbours.
         
-        nmax:
-            Up to nmax-th neighbor will be considered.
+        Parameters:
+            :K: int, number of neighbors to be detected(>= number of sites up to nmax-th neighbor).
+            :tol: float, the bond vector tolerence in grouping.
+            :leafsize: int, the leafsize of kdtree.
+            :nmax: int, the number of neighbors considered,
+            :nth_neighbor: int, up to nth neighbor are considered.
 
-            Note: if nmax<0, it will initialize the tree for query but will not initialize bonds.
-        K: 
-            Number of neighbors calculated through cKD Tree, should be >= number of sites up to nmax-th neighbor.
-        tol:
-            The bond vector tolerence.
-        leafsize:
-            The leafsize of kdtree.
-
-        *return*:
-            A list of bond vectors, the elements are 0,1,2...-th neightbors.
+        Return:
+            <BondCollection>, bond vectors, the elements are 0,1,2...-th neightbor bonds.
         '''
         #expand boundary if it is periodic
         print 'Search Nearest Neighbors through Method of cKD Tree.'
@@ -164,23 +157,22 @@ class Structure(object):
         tg=self.groups.get('translation')
         if tg is not None:
             sites=tg.get_equiv(self.sites).reshape([-1,self.vdim])
-            self.__kdt_map__=repeat(arange(self.nsite),tg.tmatrix_seq.shape[0])
+            self._kdt_map=repeat(arange(self.nsite),tg.tmatrix_seq.shape[0])
         else:
             sites=self.sites
-            self.__kdt_map__=arange(self.nsite)
+            self._kdt_map=arange(self.nsite)
         kdt=cKDTree(sites,leafsize=leafsize)
-        self.__kdt__=kdt
+        self._kdt=kdt
 
-        if nmax<0: return
-        if K is None: K=6*nmax+1
-        atom1s=[]
-        atom2s=[]
-        datas=[]
-        bondvs=[]
+        #calculate the mesh of neighbor informations.
+        atom1s=[] #start atom
+        atom2s=[] #end atom
+        datas=[]  #the distance.
+        bondvs=[] #vector
         K=min(len(kdt.data),K)
         for i,site in enumerate(self.sites):
             distance,ind2=kdt.query(site,k=K)
-            atom2=self.__kdt_map__[ind2]
+            atom2=self._kdt_map[ind2]
             datas.append(distance)
             atom2s.append(atom2)
             atom1s.append(i*ones(len(ind2),dtype='int32'))
@@ -189,60 +181,23 @@ class Structure(object):
         atom1s=concatenate(atom1s)
         atom2s=concatenate(atom2s)
         bondvs=concatenate(bondvs,axis=0)
+
+        #group by distances.
         count=0
         t1=time.time()
         nnnbonds=[]
         while any(datas!=Inf):
             minval=datas.min()
             dindex=(datas-minval)<tol
-            nnnbonds.append(BondCollection(atom1s[dindex],atom2s[dindex],bondvs[dindex]))
+            nnnbonds.append(BondCollection((atom1s[dindex],atom2s[dindex],bondvs[dindex])))
             datas[dindex]=Inf
             count+=1
-            if count>nmax:
+            if count==nth_neighbor:
                 break
-        self.__nnnbonds__=nnnbonds
+        self._nnnbonds=nnnbonds
         t2=time.time()
         print 'Elapse -> %s, %s'%(t1-t0,t2-t1)
         return nnnbonds
-
-    def save_bonds(self,filename=None,nmax=3):
-        '''
-        Save bonds.
-
-        filename:
-            The target filename.
-        nmax:
-            Up to nmax-th neighnors are saved.
-        '''
-        if filename is None: filename='nnnbonds_%s.dat'%self.nsite
-        bonds=self.__nnnbonds__
-        if bonds is None:
-            warnings.warn('Bond not Initialized, not saved.')
-            return
-        nmax=min(len(bonds),nmax)
-
-        atom1s=concatenate([bonds[i].atom1s for i in xrange(nmax)])
-        atom2s=concatenate([bonds[i].atom2s for i in xrange(nmax)])
-        bondvs=concatenate([bonds[i].bondvs for i in xrange(nmax)])
-        nnnfile=FOLDER+'/%s'%filename
-        Nptr=append([0],cumsum([bonds[i].N for i in xrange(nmax)]))
-        savetxt(nnnfile[:-4]+'.atom.dat',concatenate([atom1s[:,newaxis],atom2s[:,newaxis]],axis=1),fmt='%d')
-        savetxt(nnnfile[:-4]+'.bond.dat',bondvs)
-        savetxt(nnnfile[:-4]+'.info.dat',Nptr,fmt='%d')
-
-    def load_bonds(self,filename=None):
-        '''
-        Load bonds.
-
-        filename:
-            The target filename.
-        '''
-        if filename is None: filename='nnnbonds_%s.dat'%self.nsite
-        nnnfile=FOLDER+'/%s'%filename
-        atom1s,atom2s=loadtxt(nnnfile[:-4]+'.atom.dat',dtype='int32').T
-        bondvs=loadtxt(nnnfile[:-4]+'.bond.dat')
-        Ns=loadtxt(nnnfile[:-4]+'.info.dat',dtype='int32')
-        self.__nnnbonds__=[BondCollection(atom1s[ni:nj],atom2s[ni:nj],bondvs[ni:nj]) for ni,nj in zip(Ns[:-1],Ns[1:])]
 
     def getbonds(self,n):
         '''
@@ -254,47 +209,9 @@ class Structure(object):
         *return*:
             A <BondCollection> instance.
         '''
-        if self.__nnnbonds__ is None:
-            warnings.warn('Bond not initialized, please initialize the bonds using @initbonds method.')
-            return
-        bonds=self.__nnnbonds__
+        if not self.bonds_initialized: raise NotInitializedError()
+        bonds=self._nnnbonds
         if n>len(bonds)-1:
-            return []
+            return BondCollection([])
         else:
             return bonds[n]
-
-    def show_bonds(self,nth=(1,),plane=(0,1),color='r',offset=(0,0)):
-        '''
-        Plot the structure.
-
-        Parameters:
-            :plane: tuple, project to the specific plane if it is a 3D structre. Default is (0,1) - 'x-y' plane.
-            :nth: int, the n-th nearest bonds are plotted. It should be a tuple. Default is (1,) - the nearest neightbor.
-            :color: str, color, default is 'r' -red.
-            :offset: len-2 tuple, offset in x,y direction.
-        '''
-        if ndim(nth)==0:
-            nth=[nth]
-        nnnbonds=self.__nnnbonds__
-        if nnnbonds is None or len(nnnbonds)<=1:
-            warnings.warn('Trivial bonds @Structure.show_bond, give up.')
-            return
-        for nb in nth:
-            bs=nnnbonds[nb]
-            show_bonds(bs,start=self.sites[bs.atom1s]+offset)
-
-    def show_sites(self,plane=(0,1),color='r',offset=(0,0)):
-        '''
-        Show the sites in this structure.
-
-        Parameters:
-            :color: str, the color.
-        '''
-        if self.vdim>1:
-            p1,p2=plane
-            x,y=self.sites[:,p1],self.sites[:,p2]
-        else:
-            x=self.sites[:,0]
-            y=zeros(self.nsite)
-        scatter(x+offset[0],y+offset[1],s=50,c=color,edgecolor='none',vmin=-0.5,vmax=1.5)
-

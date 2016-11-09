@@ -8,7 +8,6 @@ from group import TranslationGroup
 from utils import toreciprocal,ind2c,c2ind,meshgrid_v
 from numpy.linalg import norm
 from scipy.spatial import cKDTree
-from matplotlib.pyplot import *
 from bzone import BZone
 
 __all__=['KSpace']
@@ -17,27 +16,17 @@ class KSpace(object):
     '''
     Lattice in K space(reciprocal lattice).
 
-    Construct
-    ------------------
-    KSpace(b,N)
+    Attributes:
+        :b: 2d array, reciprocal lattice vectors.
+        :N: 1d array, number of samples in each direction.
+        :kmesh: ndarray, mesh of momentum vectors.
+        :groups: ndarray, point groups used by this KSpace.
+        :special_points: dict, special points
 
-    Attributes
-    ---------------------
-    b:
-        The reciprocal lattice vectors.
-    N:
-        The number of samples in each direction.
-    kmesh:
-        A mesh of momentum vectors.
-    groups:
-        The translation and point groups used by this KSpace.
-    special_points:
-        A dict storing special points,
-
-        * `G`(center), can also be refer as <KSpace>.G
-        * `K`(vertices), can also be refer as <KSpace>.K
-        * `M`(edgecenter), can also be refer as <KSpace>.M
-        * `TRI`(Time Reversal invarient) points, can also be refer as <KSpace>.TRI
+            * `G`(center), can also be refer as <KSpace>.G
+            * `K`(vertices), can also be refer as <KSpace>.K
+            * `M`(edgecenter), can also be refer as <KSpace>.M
+            * `TRI`(Time Reversal invarient) points, can also be refer as <KSpace>.TRI
     '''
     def __init__(self,b,N):
         self.b=array(b)
@@ -47,8 +36,8 @@ class KSpace(object):
         self.special_points={'G':G}
 
         #add transplation symmetry group
-        tg=TranslationGroup(self.b,per=arange(self.dimension))
-        self.usegroup(tg)
+        #tg=TranslationGroup(self.b,per=arange(self.dimension))
+        #self.usegroup(tg)
 
     @property
     def N(self):
@@ -93,17 +82,18 @@ class KSpace(object):
 
     def usegroup(self,g):
         '''
-        Use specific group.
+        Use specific point group.
 
-        g:
-            a Group instance.
+        Parameters:
+            :g: <Group>,
         '''
+        if g.tp=='translation': pass
         self.groups[g.tp]=g
-        if g.tp!='translation':
-            vm=(self.M[0]-self.G)[...,newaxis]
-            vk=(self.K[0]-self.G)[...,newaxis]
-            gkm=concatenate([vm,vk],axis=1) #gmk is matrix representation of the triangular irredicible zone (vm,vk).
-            g.irzone=gkm
+        print self.M,self.G
+        vm=(self.M[0]-self.G)[...,newaxis]
+        vk=(self.K[0]-self.G)[...,newaxis]
+        gkm=concatenate([vm,vk],axis=1) #gmk is matrix representation of the triangular irredicible zone (vm,vk).
+        g.irzone=gkm
 
     def get_bzone(self):
         '''
@@ -111,19 +101,4 @@ class KSpace(object):
         '''
         bzoneborder=concatenate([self.K,self.K[0:1]])
         return BZone(bzoneborder)
-
-    def show(self,**kwargs):
-        '''
-        Show the k-mesh of this <KSpace> instance.
-        '''
-        scatter(self.kmesh[...,0],self.kmesh[...,1],**kwargs)
-        if self.vdim!=2:
-            return
-        for pname,ps in self.special_points.iteritems():
-            if ndim(ps)==1:
-                ps=[ps]
-            for i in xrange(len(ps)):
-                x,y=ps[i]
-                text(x,y,pname)
-                scatter(x,y,edgecolor='none',color='r')
 

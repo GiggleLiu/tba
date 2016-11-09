@@ -197,7 +197,7 @@ class KHGenerator(HGeneratorBase):
         self.kspace=lattice.kspace
         if self.propergauge:
             ndim=self.spaceconfig.ndim
-            catoms=self.rlattice.catoms[self.spaceconfig.atomindexer]
+            catoms=self.rlattice.catoms[self.spaceconfig.get_indexer('atom')]
             kl=self.kspace.kmesh.reshape([-1,self.kspace.vdim])
             self.propermesh=array([diag(exp([-1j*dot(kl[i],catoms[l])\
                     for l in xrange(ndim)])) for i in xrange(self.kspace.N[0])]).reshape(list(self.kspace.N)+[ndim,ndim])
@@ -219,7 +219,8 @@ class KHGenerator(HGeneratorBase):
                 propermesh,propermeshH=propermeshH,propermesh
             return array([[dot(dot(propermeshH[i,j],inmesh[i,j]),propermesh[i,j]) for j in xrange(self.kspace.N[1])] for i in xrange(self.kspace.N[0])])
         elif ndim(inmesh)==2:
-            pmat=diag(exp([-1j*dot(k,self.rlattice.catoms[self.spaceconfig.atomindexer[l]]) for l in xrange(dim)]))
+            atomindexer=self.spaceconfig.get_indexer('atom')
+            pmat=diag(exp([-1j*dot(k,self.rlattice.catoms[atomindexer[l]]) for l in xrange(dim)]))
             pmatH=conj(pmat)
             if reverse:
                 pmat,pmatH=pmatH,pmat

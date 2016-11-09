@@ -6,7 +6,6 @@ from numpy.linalg import *
 from scipy.misc import factorial
 from utils import ind2c,c2ind,s,s1
 from itertools import combinations
-from matplotlib.pyplot import *
 import pdb,time
 
 __all__=['SpaceConfig','SuperSpaceConfig','SpinSpaceConfig']
@@ -64,12 +63,6 @@ class SpaceConfig(object):
             return self.nnambu==2 and self.nspin==1
         elif name=='superconduct':
             return self.nnambu==2
-        elif name[-7:]=='indexer':
-            s=name[:-7]
-            s_axis=self.get_axis(s)
-            nl=prod(self.config[:s_axis])
-            nr=prod(self.config[s_axis+1:])
-            return kron(ones(nl,dtype='int32'),kron(arange(self.config[s_axis]),ones(nr,dtype='int32')))
         elif name[0] is 'n':
             substr=name[1:]
             if substr=='flv':
@@ -96,21 +89,19 @@ class SpaceConfig(object):
         '''
         return self.ndim
 
+    def get_indexer(self,which):
+        '''Get the array for indexing'''
+        s_axis=self.get_axis(which)
+        nl=prod(self.config[:s_axis])
+        nr=prod(self.config[s_axis+1:])
+        return kron(ones(nl,dtype='int32'),kron(arange(self.config[s_axis]),ones(nr,dtype='int32')))
+
     def get_axis(self,token):
         '''
         Get the axis index of specific token.
         '''
         assert(token in self.SPACE_TOKENS)
         return self.SPACE_TOKENS.index(token)
-
-    def setnatom(self,N):
-        '''
-        Set atom number.
-
-        N:
-            the new atom number.
-        '''
-        self.config[-2]=N
 
     def ind2c(self,index):
         '''
@@ -169,13 +160,13 @@ class SpaceConfig(object):
             spinindex=0
         mask=ones(self.ndim,dtype='bool')
         if nambuindex!=None:
-            mask=mask & (self.nambuindexer==nambuindex)
+            mask=mask & (self.get_indexer('nambu')==nambuindex)
         if spinindex!=None:
-            mask=mask & (self.spinindexer==spinindex)
+            mask=mask & (self.get_indexer('spin')==spinindex)
         if atomindex!=None:
-            mask=mask & (self.atomindexer==atomindex)
+            mask=mask & (self.get_indexer('atom')==atomindex)
         if orbitindex!=None:
-            mask=mask & (self.orbitindexer==orbitindex)
+            mask=mask & (self.get_indexer('orbit')==orbitindex)
         return mask
 
     def sigma(self,index,onlye=False):
@@ -207,7 +198,6 @@ class SpaceConfig(object):
         nr=self.nflv
         return kron(kron(identity(nl),s[index]),identity(nr))
 
-    @property
     def I(self):
         '''
         Identity matrix.
@@ -235,13 +225,13 @@ class SuperSpaceConfig(SpaceConfig):
     def __init__(self,config,ne=None):
         super(SuperSpaceConfig,self).__init__([1]+list(config)[-3:],kspace=False)
         if ne is not None:
-            self.setne(ne)
+            self._setne(ne)
         else:
             self.ne=None
             self._table=None
 
         #_binaryparser is a parser from config to index, use '&' operation to parse.
-        self._binaryparser=1 << arange(self.nsite)#-1,-1,-1)
+        self._binaryparser=1 << arange(self.nsite)
 
 
     def __str__(self):
@@ -280,17 +270,14 @@ class SuperSpaceConfig(SpaceConfig):
             hndim=pow(2,nsite)
         return hndim
 
-    def setnatom(self,natom):
+    @property
+    def basis(self):
         '''
-        Set the number of atoms.
-
-        natom:
-            the number of atoms.
+        get the whole basis.
         '''
-        super(SuperSpaceConfig,self).setnatom(natom)
-        self._binaryparser=1 << np.arange(self.nsite) #-1,-1,-1)
+        return self.ind2config(arange(self.hndim)).astype(uint8)
 
-    def setne(self,N):
+    def _setne(self,N):
         '''
         Set eletron number.
 
@@ -333,19 +320,6 @@ class SuperSpaceConfig(SpaceConfig):
             return searchsorted(self._table,id)
         else:
             return self.config2id(config)
-
-    def plotconfig(self,config,offset=zeros(2)):
-        '''
-        Display a config of electron.
-
-        Parameters:
-            :config: 1D array/2D array, len-nsite array with items 0,1(state without/with electron).
-        '''
-        cfg=config.reshape(self.config)
-        cfg=swapaxes(cfg,-1,-2).reshape([-1,self.natom])
-        x,y=meshgrid(self.atomindexer,arange(self.nsite/self.natom))
-        colors=cm.get_cmap('rainbow')(float64(cfg))
-        scatter(x+offset[0],y+offset[1],s=20,c=colors.reshape([-1,4]))
 
     def config2id(self,config):
         '''
@@ -428,13 +402,6 @@ class SuperSpaceConfig(SpaceConfig):
             if count_e:
                 res.append(ecounter)
             return tuple(res)
-
-    def show_basis(self):
-        '''
-        display the whole basis.
-        '''
-        for i in xrange(self.hndim):
-            print self.ind2config(i).astype(uint8)
 
 class SpinSpaceConfig(SpaceConfig):
     '''

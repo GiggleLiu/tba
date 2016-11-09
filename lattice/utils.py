@@ -6,7 +6,7 @@ Description : physics library
 from numpy import *
 from numpy.linalg import inv
 
-__all__=['toreciprocal','c2ind','ind2c','rotate','meshgrid_v','bisect']
+__all__=['toreciprocal','c2ind','ind2c','meshgrid_v','bisect']
 
 def toreciprocal(a):
     '''
@@ -64,49 +64,4 @@ def meshgrid_v(siteconfig,vecs):
     mg=ix_(*siteconfig)
     mr=[g[...,newaxis]*vec for vec,g in zip(vecs,mg)]
     return sum(mr,axis=0)
-
-def rotate(vector,theta):
-    '''
-    Rotate vector for theta.
-
-    vector: 
-        A(or array of) len-2 vector for rotation.
-    theta: 
-        The angle.
-    '''
-    assert(vector.shape[-1]==2)
-    rotatematrix=array([[cos(theta),-sin(theta)],[sin(theta),cos(theta)]],dtype='float64',order='F')
-    return (rotatematrix*vector[...,newaxis,:]).sum(axis=-1)
-
-def bisect(func, low, high,Nmax=50,tol=1e-8):
-    '''
-    Find root of continuous function where f(low) and f(high) take opposite signs.
-
-    func: 
-        the function to find root=0.
-    low:
-        the lower bound.
-    high:
-        the higher bound.
-    Nmax:
-        the maximum recursion times.
-    eps:
-        the accuracy.
-    '''
-    flow=func(low)
-    fhigh=func(high)
-    assert flow*fhigh<0 #should not take the same sign
-    for i in range(Nmax):
-        midpoint = (low + high) / 2.0
-        fmid=func(midpoint)
-        if flow*fmid>0:
-            low = midpoint
-            flow=fmid
-        else:
-            high = midpoint
-            fhigh=fmid
-        if abs(fmid)<=tol:
-            break
-    return midpoint
-
 

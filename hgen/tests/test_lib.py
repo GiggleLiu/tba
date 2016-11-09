@@ -4,7 +4,8 @@ from numpy import *
 from numpy.testing import dec,assert_,assert_raises,assert_almost_equal,assert_allclose
 from scipy.linalg import inv,eigh,eigvalsh
 from matplotlib.pyplot import *
-import pdb
+import pdb,sys
+sys.path.insert(0,'../')
 
 from lib import *
 from plotlib import *
