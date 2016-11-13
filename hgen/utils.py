@@ -9,10 +9,11 @@ from numpy.linalg import *
 from matplotlib.pyplot import *
 import scipy.sparse as sps
 import pdb,time
+import cPickle as pickle
 
 __all__=['sx','sy','sz','s','s1x','s1y','s1z','s1','fermi','s2vec','vec2s',
-        'ind2c','c2ind','perm_parity','bcast_dot']
-
+        'ind2c','c2ind','perm_parity','bcast_dot','quicksave','quickload',
+        'inherit_docstring_from']
 ############################ DEFINITIONS ##############################
 # pauli spin
 sx = array([[0, 1],[ 1, 0]])
@@ -153,3 +154,24 @@ def perm_parity(perm):
                 i=perm[i]
                 unchecked[i]=False
     return (size-c)%2
+
+def quicksave(filename,obj):
+    '''Save an instance.'''
+    f=open(filename,'wb')
+    pickle.dump(obj,f,pickle.HIGHEST_PROTOCOL)
+    f.close()
+
+def quickload(filename):
+    '''Load an instance.'''
+    f=open(filename,'rb')
+    obj=pickle.load(f)
+    f.close()
+    return obj
+
+def inherit_docstring_from(cls):
+    def docstring_inheriting_decorator(fn):
+        fn.__doc__ = getattr(cls, fn.__name__).__doc__
+        return fn
+    return docstring_inheriting_decorator
+
+

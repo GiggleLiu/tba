@@ -347,18 +347,21 @@ class SuperSpaceConfig(SpaceConfig):
             id=id[...,newaxis]
         return (id & self._binaryparser)>0
 
-    def indices_occ(self,occ=[],unocc=[],getreverse=False,count_e=False):
+    def indices_occ(self,occ=[],unocc=[],return_info=False):
         '''
         Find the indices with specific sites occupied.
 
         Parameters:
             :occ: list, the sites with electron. default is no site.
             :unocc: list, unoccupied sites. default is no site.
-            :getreverse: bool, get a reversed state(with occ unoccupied and unocc occupied) at the same time.
-            :count_e: bool, count electron numbers before used sites.
+            :return_info: bool, get informations.
+
+                * 'rindex': 1d array, indices for reversed occ,unocc
+                * 'e_between': list, # of electrons between sites.
 
         Return:
-            list, [states meets requirements, final states(if get reverse), electrons before used sites]
+            1d array, indices.
+            (1d array, dict) if return_info.
         '''
         occ=unique(occ).astype('int32')
         unocc=unique(unocc).astype('int32')
@@ -375,33 +378,33 @@ class SuperSpaceConfig(SpaceConfig):
         #get possible combinations
         if self.ne_conserve:
             distri=array(list(combinations(remainsites,self.ne-no)))
-            if count_e:
+            if return_info:
                 ecounter=[(distri<site).sum(axis=-1) for site in usedsites]
             #turn into indices.
             ids0=(2**distri).sum(axis=-1)
             ids=ids0+(2**occ).sum()
             indices=searchsorted(self._table,ids)
-            res=[indices]
-            if getreverse:
+            if return_info:
                 rids=ids0+(2**unocc).sum()
-                res.append(searchsorted(self._table,rids))
-            if count_e:
-                res.append(ecounter)
-            return tuple(res)
+                rindex=searchsorted(self._table,rids)
+                info={'rindex':rindex,'e_between':ecounter}
+                return indices,info
+            else:
+                return indices
         else:
             distri=self.id2config(arange(2**(self.nsite-no-nn)))[...,:-no-nn]
-            if count_e:
+            if return_info:
                 #ecounter=distri[...,usedsites[0]:usedsites[1]-1].sum(axis=-1)
                 ecounter=[distri[...,:site-i].sum(axis=-1)+sum(usedcounter[:i]) for i,site in enumerate(usedsites)]
             parser=delete(self._binaryparser,usedsites)
             ids0=(distri*parser).sum(axis=-1)
             ids=ids0+(2**occ).sum()
             res=[ids]
-            if getreverse:
-                res.append(ids0+(2**unocc).sum())
-            if count_e:
-                res.append(ecounter)
-            return tuple(res)
+            if return_info:
+                info={'rindex':ids0+(2**unocc).sum(),'e_between':ecounter}
+                return ids,info
+            else:
+                return ids
 
 class SpinSpaceConfig(SpaceConfig):
     '''

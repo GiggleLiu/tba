@@ -287,5 +287,5 @@ class RHGenerator(HGeneratorBase):
         '''
         self.rlattice=lattice
         if not lattice.bonds_initialized:
-            self.rlattice.initbonds(3)
+            self.rlattice.initbonds(20)
 

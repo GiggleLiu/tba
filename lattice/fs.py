@@ -5,8 +5,9 @@ Fermi surface related utilities.
 from numpy import *
 from numpy.linalg import norm
 from matplotlib.pyplot import *
+from scipy.optimize import bisect
+
 from path import path_k,KPath
-from utils import bisect
 
 __all__=['FermiPiece','FermiSurface','FSHandler']
 
@@ -183,7 +184,7 @@ class FSHandler(object):
                     klow,khigh=ki,ki-dk
                 else:
                     klow,khigh=ki-dk,ki
-                return bisect(efunc,klow,khigh,tol=tol)
+                return bisect(efunc,klow,khigh,xtol=tol)
 
     def get_ps(self,centerpoint,nseg,peripheral=None,eshift=0.):
         '''

@@ -6,7 +6,7 @@ Description : physics library
 from numpy import *
 from numpy.linalg import inv
 
-__all__=['toreciprocal','c2ind','ind2c','meshgrid_v','bisect']
+__all__=['toreciprocal','c2ind','ind2c','meshgrid_v']
 
 def toreciprocal(a):
     '''

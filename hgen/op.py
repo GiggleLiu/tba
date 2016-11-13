@@ -23,6 +23,14 @@ from spaceconfig import SuperSpaceConfig,SpaceConfig
 
 __all__=['OperatorBase','Operator','Bilinear','BBilinear','Operator_C','Qlinear','Qlinear_ninj','Xlinear']
 
+DAGGER='\''
+def _format_factor(num):
+    if abs(num-1)<1e-5: return ''
+    if abs(imag(num))<1e-5: num=real(num)
+    if imag(num)==0 and abs(fmod(real(num),1))<1e-5: num=int(num)
+    res='%s*'%around(num,decimals=3)
+    return res
+
 class OperatorBase(object):
     '''
     Base class for operators, Xlinear and it's conbination operator.
@@ -151,11 +159,11 @@ class Operator(OperatorBase):
         return H
 
     def __str__(self):
-        txt='%s -> %s*('%(self.label,('%.4f'%self.factor).rstrip('0'))
+        txt='%s -> %s('%(self.label,_format_factor(self.factor))
         for i in xrange(len(self.suboperators)):
             operator=self.suboperators[i]
             if i!=0:
-                txt+=' + '
+                txt+='+'
             txt+=operator.__str__()
         return txt+self.meta_info+')\n'
 
@@ -298,7 +306,7 @@ class Xlinear(OperatorBase):
             raise AttributeError('Can not find attribute %s'%name)
 
     def __str__(self):
-        txt=('%.4f'%self.factor).rstrip('0')+'*'
+        txt=_format_factor(self.factor)
         atom_axis=self.spaceconfig.get_axis('atom')
         spin_axis=self.spaceconfig.get_axis('spin')
         orbit_axis=self.spaceconfig.get_axis('orbit')
@@ -313,7 +321,7 @@ class Xlinear(OperatorBase):
             if self.spaceconfig.norbit>=2:
                 c[i]+='o'+str(inds[i][orbit_axis])
             if i<self.indices_ndag:
-                c[i]+='+'
+                c[i]+=DAGGER
         txt+=''.join(c)+self.meta_info
         return txt
 
@@ -326,7 +334,8 @@ class Xlinear(OperatorBase):
         '''
         if len(unique(self.indices))!=self.nbody:
             raise NotImplementedError('Indices are not allowed to overlap at this moment.')
-        indices1,indices2,ne=self.spaceconfig.indices_occ(unocc=self.indices[:self.indices_ndag],occ=self.indices[self.indices_ndag:],count_e=True,getreverse=True)
+        indices2,info=self.spaceconfig.indices_occ(unocc=self.indices[:self.indices_ndag],occ=self.indices[self.indices_ndag:],return_info=True)
+        indices1,ne=info['rindex'],info['e_between']
         parity=perm_parity(argsort(self.indices))
         sign=1-2*((sum(ne,axis=0)+parity)%2)
         data=self.factor*param*sign
@@ -379,7 +388,7 @@ class Operator_C(Xlinear):
         return Operator_C(spaceconfig=self.spaceconfig,index=self.index,dag=not self.dag,factor=conj(self.factor))
 
     def __str__(self):
-        txt=('%.4f'%self.factor).rstrip('0')+'*'
+        txt=_format_factor(self.factor)
         atom_axis=self.spaceconfig.get_axis('atom')
         spin_axis=self.spaceconfig.get_axis('spin')
         orbit_axis=self.spaceconfig.get_axis('orbit')
@@ -393,7 +402,7 @@ class Operator_C(Xlinear):
         if self.spaceconfig.norbit>=2:
             c+='o'+str(inds[orbit_axis])
         if self.dag:
-            c+='+'
+            c+=DAGGER
         txt+=c+self.meta_info
         return txt
 
@@ -409,7 +418,8 @@ class Operator_C(Xlinear):
             if self.dag:
                 occ,unocc=unocc,occ
             #notice that this state is used as index2, and the reverse is index1
-            index2,index1,count_e=self.spaceconfig.indices_occ(occ=occ,unocc=unocc,getreverse=True,count_e=True)
+            index2,info=self.spaceconfig.indices_occ(occ=occ,unocc=unocc,return_info=True)
+            count_e,index1=info['e_between'],info['rindex']
 
             #coping the sign problem
             sparam=array([param]*len(index1))
@@ -443,7 +453,7 @@ class Bilinear(Xlinear):
         super(Bilinear,self).__init__(spaceconfig=spaceconfig,indices=[index1,index2],factor=factor,indices_ndag=indices_ndag)
 
     def __str__(self):
-        txt=('%.4f'%self.factor).rstrip('0')+'*'
+        txt=_format_factor(self.factor)
         inds=[self.spaceconfig.ind2c(self.index1),self.spaceconfig.ind2c(self.index2)]
         c=['C_','C_']
         atom_axis=self.spaceconfig.get_axis('atom')
@@ -459,9 +469,9 @@ class Bilinear(Xlinear):
             if self.spaceconfig.norbit>=2:
                 c[i]+='o'+str(inds[i][orbit_axis])
             if self.spaceconfig.nnambu==2:
-                c[i]+='+' if (i==inds[i][self.spaceconfig.get_axis('nambu')]) else ''
+                c[i]+=DAGGER if (i==inds[i][self.spaceconfig.get_axis('nambu')]) else ''
             else:
-                c[i]+='+' if (i<self.indices_ndag) else ''
+                c[i]+=DAGGER if (i<self.indices_ndag) else ''
         txt+=''.join(c)+self.meta_info
         return txt
 
@@ -476,9 +486,9 @@ class Bilinear(Xlinear):
                 return super(Bilinear,self).__call__(param,dense)
             else:
                 if self.index1<nflv:
-                    index2=index1=self.spaceconfig.indices_occ(occ=[self.index1])[0]
+                    index2=index1=self.spaceconfig.indices_occ(occ=[self.index1])
                 else:
-                    index2=index1=self.spaceconfig.indices_occ(unocc=[self.index1])[0]
+                    index2=index1=self.spaceconfig.indices_occ(unocc=[self.index1])
                 sparam=(param*self.factor)*ones(len(index1))
             if not dense:
                 h=coo_matrix((sparam,(index1,index2)),shape=[self.spaceconfig.hndim]*2,dtype='complex128')
@@ -632,7 +642,7 @@ class Qlinear_ninj(Qlinear):
         Refer Operator.__call__
         '''
         #first get all posible distribution of eletrons with site2 and site1 both occupied/unoccupied(reverse).
-        indices=self.spaceconfig.indices_occ([self.i,self.j])[0]
+        indices=self.spaceconfig.indices_occ([self.i,self.j])
         #set the H matrix, note the '-' sign befor self.factor.
         data=param*(-self.factor)*ones(indices.shape,dtype='complex128')
         if not dense:

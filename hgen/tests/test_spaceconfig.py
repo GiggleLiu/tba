@@ -22,7 +22,16 @@ class Test_superconfig():
         self.scfgs=[self.sscfg,self.sscfg_ne]
         for scfg in self.scfgs:
             assert_allclose([scfg.natom,scfg.nspin,scfg.norbit],config)
-            assert_allclose(scfg.config,config)
+            assert_allclose(scfg.config[1:],config)
+
+    def test_indices_occ(self):
+        spaceconfig=SuperSpaceConfig([2,2,1])
+        #the first digree of freedom(atom1,up) occupied, means [1,x,x,x]
+        assert_allclose(spaceconfig.indices_occ(occ=[0]),arange(1,16,2))
+        #the first two digree of freedom(atom1,up^dn) occupied, means [1,1,x,x]
+        assert_allclose(spaceconfig.indices_occ(occ=[0,1]),arange(3,16,4))
+        #the first two digree of freedom(atom1,up^dn) occupied/unoccupied, means [1,0,x,x]
+        assert_allclose(spaceconfig.indices_occ(occ=[0],unocc=[1]),arange(1,16,4))
 
     def test_parse(self):
         '''test for ind-config parsing.'''
@@ -40,6 +49,7 @@ class Test_superconfig():
             assert_(ind2==ind)
 
     def test_all(self):
+        self.test_indices_occ()
         self.test_parse()
 
 class Test_spinconfig():

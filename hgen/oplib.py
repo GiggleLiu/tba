@@ -11,7 +11,7 @@ from utils import sx,sy,sz
 from spaceconfig import *
 
 __all__=['op_from_mats','op_on_bond','op_U','op_V','op_c','op_supercooper',\
-        'op_cdag','op_simple_onsite','op_simple_hopping','op_M','site_shift','op_fusion']
+        'op_cdag','op_simple_onsite','op_simple_hopping','op_M','site_shift','op_fusion','Z4scfg']
 
 def op_from_mats(label,spaceconfig,mats,bonds=None):
     '''
@@ -368,3 +368,18 @@ def op_fusion(label,operators):
         nop=nop+site_shift(op,n=shift,new_spaceconfig=spaceconfig)
     nop.label=label
     return nop
+
+def Z4scfg(spaceconfig):
+    '''
+    Get the Z operator for spaceconfig.
+
+    Parameters:
+        :spaceconfig: <SuperSpaceConfig>, the spaceconfig.
+
+    Return:
+        1d array, the parity for each dimension.
+    '''
+    config=spaceconfig.basis
+    nes=sum(config,axis=-1)
+    signs=np.rint(1-2*(nes%2))
+    return signs
