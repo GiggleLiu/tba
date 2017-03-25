@@ -158,7 +158,7 @@ def perm_parity(perm):
 def quicksave(filename,obj):
     '''Save an instance.'''
     f=open(filename,'wb')
-    pickle.dump(obj,f,pickle.HIGHEST_PROTOCOL)
+    pickle.dump(obj,f,2)
     f.close()
 
 def quickload(filename):

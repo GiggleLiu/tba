@@ -6,5 +6,6 @@ from utils import *
 from multithreading import *
 from lib import *
 from plotlib import *
+from kron import *
 
 __all__=['spaceconfig','op','oplib','generator','utils','multithreading','lib','plotlib']

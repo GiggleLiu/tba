@@ -18,7 +18,7 @@ from utils import sx,sy,sz
 
 def test_single_site():
     print 'Test single site operator.'
-    spaceconfig=SuperSpaceConfig([2,1,1])
+    spaceconfig=SuperSpaceConfig([1,2,1])
     print 'Hubbard U'
     op_ninj=op_U(label='ninj',spaceconfig=spaceconfig)
     udata=zeros([spaceconfig.hndim]*2,dtype='complex128')

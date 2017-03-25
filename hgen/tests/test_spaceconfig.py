@@ -16,7 +16,7 @@ SpaceConfig.SPACE_TOKENS=['nambu','atom','spin','orbit']
 
 class Test_superconfig():
     def __init__(self):
-        config=[2,5,2]
+        config=[5,2,2]
         self.sscfg=SuperSpaceConfig(config)
         self.sscfg_ne=SuperSpaceConfig(config,ne=10)
         self.scfgs=[self.sscfg,self.sscfg_ne]
@@ -54,13 +54,13 @@ class Test_superconfig():
 
 class Test_spinconfig():
     def __init__(self):
-        config1=[2,1]
-        config2=[3,1]
+        config1=[1,2]
+        config2=[1,3]
         self.scfg=SpinSpaceConfig(config1)
         self.scfg1=SpinSpaceConfig(config2)
         self.scfgs=[self.scfg,self.scfg1]
         for scfg,config in zip(self.scfgs,[config1,config2]):
-            assert_allclose([scfg.nspin,scfg.natom],config)
+            assert_allclose([scfg.natom,scfg.nspin],config)
             assert_allclose(scfg.config,config)
 
     def test_sigma(self):
@@ -74,8 +74,18 @@ class Test_spinconfig():
                 tvals=arange(scfg.nspin)-(scfg.nspin-1)/2.
                 assert_allclose(evals,tvals,atol=1e-10)
 
+    def test_config(self):
+        config=SpinSpaceConfig([4,2])
+        print 'Testing config-ind parsing 1D.'
+        assert_(config.config2ind([1,1,0,1])==13)
+        assert_allclose(config.ind2config(5),[0,1,0,1])
+        print 'Testing config ind parsing 2D.'
+        assert_allclose(config.config2ind([[1,1,0,1],[0,0,1,0]]),[13,2])
+        assert_allclose(config.ind2config([5,10]),[[0,1,0,1],[1,0,1,0]])
+
     def test_all(self):
         self.test_sigma()
+        self.test_config()
 
 Test_spinconfig().test_all()
 Test_superconfig().test_all()

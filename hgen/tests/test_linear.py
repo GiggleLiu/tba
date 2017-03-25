@@ -12,8 +12,6 @@ from spaceconfig import *
 sys.path.insert(0,'../../lattice')
 from bond import Bond
 
-SpaceConfig.SPACE_TOKENS=['nambu','atom','spin','orbit']
-
 class TestLinear():
     def __init__(self):
         self.spaceconfig=SuperSpaceConfig([1,4,2,1])

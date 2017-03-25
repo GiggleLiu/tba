@@ -10,7 +10,7 @@ import pdb,time
 
 __all__=['SpaceConfig','SuperSpaceConfig','SpinSpaceConfig']
 
-standard_order=['nambu','spin','atom','orbit']
+standard_order=['nambu','atom','spin','orbit']
 
 def parse_order(config,order):
     '''
@@ -29,7 +29,7 @@ def parse_order(config,order):
     return cfg
 
 class SpaceConfig(object):
-    SPACE_TOKENS=['nambu','spin','atom','orbit']
+    SPACE_TOKENS=['nambu','atom','spin','orbit']
     '''
     Space configuration class.
     A typical hamiltonian space config consist of 4 part:
@@ -412,15 +412,15 @@ class SpinSpaceConfig(SpaceConfig):
 
     spin number and atom number are considered.
     '''
-    SPACE_TOKENS=['spin','atom']
+    SPACE_TOKENS=['atom','spin']
     def __init__(self,config):
-        assert(len(config)==2 and config[0]>1)
+        assert(len(config)==2 and config[1]>1)
         super(SpinSpaceConfig,self).__init__(config,kspace=False)
 
     @property
     def hndim(self):
         '''Hamiltonian dimension.'''
-        return self.config[0]**self.config[1:].prod()
+        return self.config[1]**self.config[0]
 
     def sigma(self,index):
         '''
@@ -448,22 +448,24 @@ class SpinSpaceConfig(SpaceConfig):
             integer/1D array, indices.
         '''
         nspin=self.nspin
-        return sum([config[...,i]*self.natom**i for i in xrange(self.natom)],axis=0)
+        config=asarray(config)
+        return sum(config*self.nspin**arange(self.natom-1,-1,-1),axis=-1)
 
-    def ind2config(self,id):
+    def ind2config(self,ind):
         '''
         Convert id to config.
 
         Parameters:
-            :id: a number indicate the whole space index.
+            :ind: int, ind-th dimension.
 
         Return:
-            1D array/2D array, the configuration of electrons.
+            1D array/2D array, the configuration of spins.
         '''
         nspin=self.nspin
+        ind=asarray(ind)
         config=[]
         for i in xrange(self.natom):
-            ci=id%nspin
-            id=(id-ci)/nspin
+            ci=ind%nspin
+            ind=(ind-ci)/nspin
             config.append(ci[...,newaxis])
         return concatenate(config[::-1],axis=-1)

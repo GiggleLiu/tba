@@ -13,8 +13,6 @@ from oplib import op_simple_hopping,op_U,op_simple_onsite
 from tba.lattice import Structure
 from blockmatrix.blocklib import eigbsh,eigbh,get_blockmarker,tobdmatrix
 
-SpaceConfig.SPACE_TOKENS=['nambu','atom','spin','orbit']
-
 class FermiHTest(object):
     '''
     Test fermionic hamiltonian generator.
